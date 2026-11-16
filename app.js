@@ -370,13 +370,21 @@
     function (u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
   ];
   function grFetch(url) {
+    var key = trim(localStorage.getItem('grProxyKey') || '');
+    var builders = [];
+    if (key) builders.push(function (u) {
+      return { url: 'https://r.jina.ai/' + u, headers: { 'Authorization': 'Bearer ' + key } };
+    });
+    GR_PROXIES.forEach(function (p) {
+      builders.push(function (u) { return { url: p(u) }; });
+    });
     var attempt = 0;
     function next() {
-      if (attempt >= GR_PROXIES.length) return Promise.reject(new Error('proxy exhausted'));
-      var target = GR_PROXIES[attempt++](url);
+      if (attempt >= builders.length) return Promise.reject(new Error('all failed'));
+      var req = builders[attempt++](url);
       var ctrl = new AbortController();
-      var timer = setTimeout(function () { ctrl.abort(); }, 12000);
-      return fetch(target, { signal: ctrl.signal })
+      var timer = setTimeout(function () { ctrl.abort(); }, 15000);
+      return fetch(req.url, { signal: ctrl.signal, headers: req.headers })
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
         .then(function (t) {
           clearTimeout(timer);
@@ -386,6 +394,88 @@
         .catch(function () { clearTimeout(timer); return next(); });
     }
     return next();
+  }
+  /* Jina 返回 Markdown，免费代理返回 HTML，两种格式都要能解析 */
+  function looksLikeMd(t) { return t.indexOf('](') !== -1 && t.indexOf('goodreads.com') !== -1; }
+  function parseSearchText(t) { return looksLikeMd(t) ? parseGRSearchMD(t) : parseGRSearch(t); }
+  function parseBookText(t) { return looksLikeMd(t) ? parseGRBookMD(t) : parseGRBook(t); }
+  function parseSeriesText(t) { return looksLikeMd(t) ? parseGRSeriesMD(t) : parseGRSeries(t); }
+  function parseGRSearchMD(t) {
+    var out = [], seen = {};
+    var lines = t.split('\n');
+    var reBook = /\[([^\]]+)\]\((https:\/\/www\.goodreads\.com\/book\/show\/(\d+)[^)]*)\)/;
+    var reAuthor = /\[([^\]]+)\]\(https:\/\/www\.goodreads\.com\/author\/show\/\d+[^)]*\)/;
+    for (var i = 0; i < lines.length && out.length < 6; i++) {
+      var m = lines[i].match(reBook);
+      if (!m) continue;
+      if (seen[m[3]]) continue;
+      var author = '', series = '';
+      for (var j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+        var am = lines[j].match(reAuthor);
+        if (am) author = am[1].trim();
+        var sm = lines[j].match(/^\s*[*>\-]?\s*(.{2,60}?)[,，]?\s+#(\d+)[\s*]*$/);
+        if (sm) series = sm[1].replace(/[*#]/g, '').trim();
+      }
+      seen[m[3]] = 1;
+      out.push({ title: m[1].trim(), author: author, series: series, url: 'https://www.goodreads.com/book/show/' + m[3] });
+    }
+    return out;
+  }
+  function parseGRBookMD(t) {
+    var info = { title: '', author: '', series: '', seriesUrl: '', seriesNum: '' };
+    var lines = t.split('\n');
+    /* 书名优先用正文的 # 标题；没有再用 Title: 行（剥掉 "| Goodreads" 后缀） */
+    for (var h = 0; h < lines.length; h++) {
+      var hm = lines[h].match(/^#\s+(.+)/);
+      if (hm) { info.title = hm[1].replace(/[*#]/g, '').trim(); break; }
+    }
+    if (!info.title) {
+      for (var k = 0; k < lines.length; k++) {
+        var tm = lines[k].match(/^Title:\s*(.+)$/i);
+        if (tm) { info.title = tm[1].replace(/\s*\|.*$/, '').replace(/[*#]/g, '').trim(); break; }
+      }
+    }
+    for (var i = 0; i < lines.length; i++) {
+      var L = lines[i];
+      if (!info.author) {
+        var am = L.match(/\[([^\]]+)\]\(https:\/\/www\.goodreads\.com\/author\/show\/\d+[^)]*\)/);
+        if (am) info.author = am[1].trim();
+      }
+      var sm = L.match(/\[(.{2,80}?)\]\((https:\/\/www\.goodreads\.com\/series\/\d+[^)]*)\)/);
+      if (sm && !info.series) {
+        info.series = sm[1].trim();
+        info.seriesUrl = sm[2];
+        var nm = L.match(/#\s*([\d.]+)/) || (i + 1 < lines.length && lines[i + 1].match(/#\s*([\d.]+)/));
+        if (nm) info.seriesNum = nm[1];
+        continue;
+      }
+      if (!info.series) {
+        var sm2 = L.match(/^\s*[*>\-]?\s*Series[::]\s*(.+?)\s*$/i);
+        if (sm2) {
+          var lm = sm2[1].match(/\((https:\/\/www\.goodreads\.com\/series\/\d+[^)]*)\)/);
+          if (lm) info.seriesUrl = lm[1];
+          var nm2 = sm2[1].match(/#\s*([\d.]+)/);
+          if (nm2) info.seriesNum = nm2[1];
+          info.series = sm2[1].replace(/\(https?:[^)]+\)/g, '').replace(/[*#\[\](),，]/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+      }
+      if (info.author && info.series) break;
+    }
+    return info;
+  }
+  function parseGRSeriesMD(t) {
+    var out = [], seen = {};
+    var re = /\[([^\]]+)\]\((https:\/\/www\.goodreads\.com\/book\/show\/(\d+)[^)]*)\)/g;
+    var m;
+    while ((m = re.exec(t)) && out.length < 60) {
+      if (seen[m[3]]) continue;
+      var title = m[1].trim();
+      if (!title || title.length < 2) continue;
+      if (/boxed set|omnibus|complete collection/i.test(title)) continue;
+      seen[m[3]] = 1;
+      out.push({ title: title, url: 'https://www.goodreads.com/book/show/' + m[3] });
+    }
+    return out;
   }
   /* 搜索结果页 → 候选书列表 */
   function parseGRSearch(html) {
@@ -524,7 +614,7 @@
   function pickGrBook(item) {
     suggestBox.innerHTML = '<div class="suggest-sec">读取书籍详情…</div>';
     grFetch(item.url).then(function (html) {
-      var info = parseGRBook(html);
+      var info = parseBookText(html);
       $('fTitle').value = info.title || item.title;
       if (info.author) $('fAuthor').value = info.author;
       else if (item.author) $('fAuthor').value = item.author;
@@ -552,7 +642,7 @@
   function importSeriesBooks(info) {
     toast('正在读取《' + info.series + '》系列书目…');
     grFetch(info.seriesUrl).then(function (html) {
-      var books = parseGRSeries(html);
+      var books = parseSeriesText(html);
       if (!books.length) { toast('系列页没解析到书目'); return; }
       var existing = {};
       records.forEach(function (r) {
@@ -597,11 +687,11 @@
       btn.disabled = false;
       btn.textContent = '获取';
       hideSuggest();
-      toast('几个数据源都连不上。开启代理/VPN 后再试，或开代理在浏览器里查到后粘贴链接');
+      toast('连不上图书数据源。建议在右上角「设置」里填免费的 Jina API Key（不开 VPN 也能查 Goodreads），或开启代理/VPN 后再试');
     }
     /* Goodreads：数据最全（作者+系列+系列书单），走公共代理 */
     grFetch(GR_SITE + '/search?q=' + encodeURIComponent(q)).then(function (html) {
-      var items = parseGRSearch(html);
+      var items = parseSearchText(html);
       if (picked || !items.length) return;
       done = true;
       btn.disabled = false;
@@ -636,13 +726,25 @@
   function openModal(id) { $(id).hidden = false; document.body.style.overflow = 'hidden'; }
   function closeModal(id) {
     $(id).hidden = true;
-    if ($('detailModal').hidden && $('formModal').hidden && $('importModal').hidden) {
+    if ($('detailModal').hidden && $('formModal').hidden && $('importModal').hidden && $('settingsModal').hidden) {
       document.body.style.overflow = '';
     }
   }
-  ['detailModal', 'formModal', 'importModal'].forEach(function (mid) {
+  ['detailModal', 'formModal', 'importModal', 'settingsModal'].forEach(function (mid) {
     $(mid).addEventListener('click', function (e) { if (e.target === $(mid)) closeModal(mid); });
   });
+  $('btnSettings').onclick = function () {
+    $('grKeyInput').value = localStorage.getItem('grProxyKey') || '';
+    openModal('settingsModal');
+  };
+  $('btnSettingsCancel').onclick = function () { closeModal('settingsModal'); };
+  $('btnSettingsSave').onclick = function () {
+    var k = trim($('grKeyInput').value);
+    if (k) localStorage.setItem('grProxyKey', k);
+    else localStorage.removeItem('grProxyKey');
+    closeModal('settingsModal');
+    toast(k ? '已保存 Key，「获取」现在优先走 Jina（不开 VPN 也能查 GR）' : '已清除 Key');
+  };
 
   /* ============ 事件绑定 ============ */
   $('btnAdd').onclick = function () { openForm(null); };

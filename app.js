@@ -208,6 +208,9 @@
     $('fPublisher').value = isEdit ? rec.publisher : '';
     $('fNote').value = isEdit ? rec.note : '';
     $('fGrUrl').value = isEdit ? rec.goodreadsUrl : '';
+    $('fGrBookUrlH').value = isEdit ? (rec.grBookUrl || '') : '';
+    $('fGrAuthorUrlH').value = isEdit ? (rec.grAuthorUrl || '') : '';
+    $('fGrSeriesUrlH').value = isEdit ? (rec.grSeriesUrl || '') : '';
     $('grTip').hidden = true;
     openModal('formModal');
     setTimeout(function () { $('fTitle').focus(); }, 250);
@@ -228,7 +231,10 @@
       price: $('fPrice').value === '' ? '' : String(parseFloat($('fPrice').value)),
       publisher: trim($('fPublisher').value),
       note: trim($('fNote').value),
-      goodreadsUrl: trim($('fGrUrl').value)
+      goodreadsUrl: trim($('fGrUrl').value),
+      grBookUrl: trim($('fGrBookUrlH').value),
+      grAuthorUrl: trim($('fGrAuthorUrlH').value),
+      grSeriesUrl: trim($('fGrSeriesUrlH').value)
     };
     if (!data.title) { toast('请填写书名'); return; }
     if (id) {
@@ -261,6 +267,9 @@
     if (trim(rec.series)) $('fSeries').value = rec.series;
     if (!$('fPublisher').value && trim(rec.publisher)) $('fPublisher').value = rec.publisher;
     if (!$('fGrUrl').value && trim(rec.goodreadsUrl)) $('fGrUrl').value = rec.goodreadsUrl;
+    if (!$('fGrBookUrlH').value && trim(rec.grBookUrl)) $('fGrBookUrlH').value = rec.grBookUrl;
+    if (!$('fGrAuthorUrlH').value && trim(rec.grAuthorUrl)) $('fGrAuthorUrlH').value = rec.grAuthorUrl;
+    if (!$('fGrSeriesUrlH').value && trim(rec.grSeriesUrl)) $('fGrSeriesUrlH').value = rec.grSeriesUrl;
   }
   function fillFromSeries(rec) {
     if (trim(rec.series)) $('fSeries').value = rec.series;
@@ -404,25 +413,25 @@
     var out = [], seen = {};
     var lines = t.split('\n');
     var reBook = /\[([^\]]+)\]\((https:\/\/www\.goodreads\.com\/book\/show\/(\d+)[^)]*)\)/;
-    var reAuthor = /\[([^\]]+)\]\(https:\/\/www\.goodreads\.com\/author\/show\/\d+[^)]*\)/;
+    var reAuthor = /\[([^\]]+)\]\((https:\/\/www\.goodreads\.com\/author\/show\/\d+[^)]*)\)/;
     for (var i = 0; i < lines.length && out.length < 6; i++) {
       var m = lines[i].match(reBook);
       if (!m) continue;
       if (seen[m[3]]) continue;
-      var author = '', series = '';
+      var author = '', authorUrl = '', series = '';
       for (var j = i + 1; j < Math.min(i + 4, lines.length); j++) {
         var am = lines[j].match(reAuthor);
-        if (am) author = am[1].trim();
+        if (am) { author = am[1].trim(); authorUrl = am[2]; }
         var sm = lines[j].match(/^\s*[*>\-]?\s*(.{2,60}?)[,，]?\s+#(\d+)[\s*]*$/);
         if (sm) series = sm[1].replace(/[*#]/g, '').trim();
       }
       seen[m[3]] = 1;
-      out.push({ title: m[1].trim(), author: author, series: series, url: 'https://www.goodreads.com/book/show/' + m[3] });
+      out.push({ title: m[1].trim(), author: author, authorUrl: authorUrl, series: series, url: 'https://www.goodreads.com/book/show/' + m[3] });
     }
     return out;
   }
   function parseGRBookMD(t) {
-    var info = { title: '', author: '', series: '', seriesUrl: '', seriesNum: '' };
+    var info = { title: '', author: '', authorUrl: '', series: '', seriesUrl: '', seriesNum: '' };
     var lines = t.split('\n');
     /* 书名优先用正文的 # 标题；没有再用 Title: 行（剥掉 "| Goodreads" 后缀） */
     for (var h = 0; h < lines.length; h++) {
@@ -438,8 +447,8 @@
     for (var i = 0; i < lines.length; i++) {
       var L = lines[i];
       if (!info.author) {
-        var am = L.match(/\[([^\]]+)\]\(https:\/\/www\.goodreads\.com\/author\/show\/\d+[^)]*\)/);
-        if (am) info.author = am[1].trim();
+        var am = L.match(/\[([^\]]+)\]\((https:\/\/www\.goodreads\.com\/author\/show\/\d+[^)]*)\)/);
+        if (am) { info.author = am[1].trim(); info.authorUrl = am[2]; }
       }
       var sm = L.match(/\[(.{2,80}?)\]\((https:\/\/www\.goodreads\.com\/series\/\d+[^)]*)\)/);
       if (sm && !info.series) {
@@ -491,10 +500,14 @@
       var title = (as[i].textContent || '').trim();
       if (!title || title.length < 2) continue;
       var row = as[i].closest('tr') || as[i].closest('.item') || as[i].parentElement;
-      var author = '', series = '';
+      var author = '', authorUrl = '';
       if (row) {
         var aa = row.querySelector('a[href*="/author/show/"]');
-        if (aa) author = (aa.textContent || '').trim();
+        if (aa) {
+          author = (aa.textContent || '').trim();
+          authorUrl = aa.getAttribute('href') || '';
+          if (authorUrl && authorUrl.charAt(0) === '/') authorUrl = GR_SITE + authorUrl;
+        }
         var grey = row.querySelector('.greyText, .dataElement');
         if (grey) {
           var sm = (grey.textContent || '').trim().match(/^(.+?)[,，]\s*#([\d.]+)/);
@@ -502,14 +515,14 @@
         }
       }
       seen[id] = 1;
-      out.push({ title: title, author: author, series: series, url: GR_SITE + '/book/show/' + id });
+      out.push({ title: title, author: author, authorUrl: authorUrl, series: series, url: GR_SITE + '/book/show/' + id });
     }
     return out;
   }
   /* 书页 → 书名/作者/系列 */
   function parseGRBook(html) {
     var doc = new DOMParser().parseFromString(html, 'text/html');
-    var info = { title: '', author: '', series: '', seriesUrl: '', seriesNum: '' };
+    var info = { title: '', author: '', authorUrl: '', series: '', seriesUrl: '', seriesNum: '' };
     var lds = doc.querySelectorAll('script[type="application/ld+json"]');
     for (var i = 0; i < lds.length; i++) {
       try {
@@ -532,6 +545,13 @@
     if (!info.author) {
       var aa = doc.querySelector('a[href*="/author/show/"] span') || doc.querySelector('a.authorName');
       if (aa) info.author = (aa.textContent || '').trim();
+    }
+    if (!info.authorUrl) {
+      var al = doc.querySelector('a[href*="/author/show/"]');
+      if (al) {
+        info.authorUrl = al.getAttribute('href') || '';
+        if (info.authorUrl && info.authorUrl.charAt(0) === '/') info.authorUrl = GR_SITE + info.authorUrl;
+      }
     }
     var sl = doc.querySelectorAll('a[href*="/series/"]');
     for (var k = 0; k < sl.length; k++) {
@@ -620,7 +640,11 @@
       else if (item.author) $('fAuthor').value = item.author;
       if (info.series) $('fSeries').value = info.series;
       else if (item.series) $('fSeries').value = item.series;
+      /* 三个 GR 链接都存进记录：书页/作者页/系列页 */
       $('fGrUrl').value = item.url;
+      $('fGrBookUrlH').value = item.url;
+      $('fGrAuthorUrlH').value = info.authorUrl || item.authorUrl || '';
+      $('fGrSeriesUrlH').value = info.seriesUrl || '';
       hideSuggest();
       var seriesName = info.series || item.series;
       var seriesUrl = info.seriesUrl;
@@ -629,11 +653,15 @@
           if (confirm('这是《' + seriesName + '》系列' +
             (info.seriesNum ? '第 ' + info.seriesNum + ' 本' : '') +
             '。\n\n要把系列里你还没记录的书，自动加为「未购买」吗？')) {
-            importSeriesBooks({ series: seriesName, seriesUrl: seriesUrl, author: info.author || item.author || '' });
+            importSeriesBooks({
+              series: seriesName, seriesUrl: seriesUrl,
+              author: info.author || item.author || '',
+              authorUrl: info.authorUrl || item.authorUrl || ''
+            });
           }
         }, 250);
       } else if (seriesName) {
-        toast('已填好作者和系列（《' + seriesName + '》），这本书的系列页链接没抓到');
+        toast('已填好作者和系列，这本书的系列页链接没抓到');
       } else {
         toast('已填好作者，这本书不属于任何系列');
       }
@@ -663,7 +691,7 @@
           owned: '否',
           binding: '', date: '', source: '', sourceUrl: '',
           price: '', publisher: '', note: '',
-          grBookUrl: b.url, grSeriesUrl: info.seriesUrl, grAuthorUrl: '',
+          grBookUrl: b.url, grSeriesUrl: info.seriesUrl, grAuthorUrl: info.authorUrl || '',
           goodreadsUrl: b.url
         });
       });

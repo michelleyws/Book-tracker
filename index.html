@@ -136,12 +136,15 @@
           <textarea id="fNote" rows="2"></textarea>
         </label>
         <label class="field">
-          <span>Goodreads 链接（可选）</span>
+          <span>Goodreads 链接（可选，「获取」选中后自动填书页/作者页/系列页）</span>
           <div class="input-with-btn">
             <input type="url" id="fGrUrl" placeholder="https://www.goodreads.com/…">
             <button type="button" class="btn btn-small" id="btnGrSearch">搜索</button>
           </div>
         </label>
+        <input type="hidden" id="fGrBookUrlH">
+        <input type="hidden" id="fGrAuthorUrlH">
+        <input type="hidden" id="fGrSeriesUrlH">
         <p class="form-tip" id="grTip" hidden>已按书名+作者打开 Goodreads 搜索，找到对应书籍页面后，复制网址粘贴到上面即可。</p>
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" id="btnCancel">取消</button>

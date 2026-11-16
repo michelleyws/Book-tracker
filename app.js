@@ -381,18 +381,20 @@
   function grFetch(url) {
     var key = trim(localStorage.getItem('grProxyKey') || '');
     var builders = [];
-    if (key) builders.push(function (u) {
-      return { url: 'https://r.jina.ai/' + u, headers: { 'Authorization': 'Bearer ' + key } };
+    if (key) builders.push({
+      build: function (u) { return { url: 'https://r.jina.ai/' + u, headers: { 'Authorization': 'Bearer ' + key } }; },
+      timeout: 40000 /* Jina 有时较慢，多等一会 */
     });
     GR_PROXIES.forEach(function (p) {
-      builders.push(function (u) { return { url: p(u) }; });
+      builders.push({ build: function (u) { return { url: p(u) }; }, timeout: 12000 });
     });
     var attempt = 0;
     function next() {
       if (attempt >= builders.length) return Promise.reject(new Error('all failed'));
-      var req = builders[attempt++](url);
+      var b = builders[attempt++];
+      var req = b.build(url);
       var ctrl = new AbortController();
-      var timer = setTimeout(function () { ctrl.abort(); }, 15000);
+      var timer = setTimeout(function () { ctrl.abort(); }, b.timeout);
       return fetch(req.url, { signal: ctrl.signal, headers: req.headers })
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
         .then(function (t) {
@@ -727,13 +729,17 @@
     var s = decodeURIComponent(slug).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
     return s.replace(/\b([a-z])/g, function (c) { return c.toUpperCase(); });
   }
+  function normTitle(s) {
+    return trim(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
   function findRecByGr(kind, id) {
     var pat = kind === 'series' ? '/series/' + id : '/' + kind + '/show/' + id;
     for (var i = 0; i < records.length; i++) {
       var r = records[i];
+      /* goodreadsUrl 可能存的是书页/系列/作者任意一种链接，都拿来比对编号 */
       var urls = kind === 'book' ? [r.grBookUrl, r.goodreadsUrl]
-        : kind === 'series' ? [r.grSeriesUrl]
-          : [r.grAuthorUrl];
+        : kind === 'series' ? [r.grSeriesUrl, r.goodreadsUrl]
+          : [r.grAuthorUrl, r.goodreadsUrl];
       for (var j = 0; j < urls.length; j++) {
         if (urls[j] && urls[j].indexOf(pat) !== -1) return r;
       }
@@ -750,20 +756,35 @@
     if (!p) { toast('识别不了这个链接：需要 /book/show/、/series/ 或 /author/show/ 的网址'); return; }
     if (p.kind === 'book') {
       var rec = findRecByGr('book', p.id);
+      var titleGuess = slugToName(p.slug);
+      /* 编号没匹配上（旧数据只存了系列/作者链接）→ 按书名兜底匹配 */
+      if (!rec && titleGuess) {
+        var nt = normTitle(titleGuess);
+        for (var i = 0; i < records.length; i++) {
+          if (normTitle(records[i].title) === nt) { rec = records[i]; break; }
+        }
+      }
       if (rec) {
         fillFromBook(rec);
         $('fGrUrl').value = url;
         $('fGrBookUrlH').value = rec.grBookUrl || url;
         toast('已从书库识别这本书，书名/作者/系列和三个链接都填好了');
       } else {
-        if (!$('fTitle').value) $('fTitle').value = slugToName(p.slug);
+        if (!$('fTitle').value) $('fTitle').value = titleGuess;
         $('fGrBookUrlH').value = url;
         toast('书库还没有这本书：已填书名和书页链接，正在联网获取作者/系列…');
-        enrichFromGrBook(url);
+        enrichFromGrBook(url, titleGuess);
       }
     } else if (p.kind === 'series') {
       var recS = findRecByGr('series', p.id);
-      var seriesName = (recS && trim(recS.series)) || slugToName(p.slug);
+      var seriesGuess = slugToName(p.slug);
+      if (!recS && seriesGuess) {
+        var ns = normTitle(seriesGuess);
+        for (var k = 0; k < records.length; k++) {
+          if (normTitle(records[k].series) === ns) { recS = records[k]; break; }
+        }
+      }
+      var seriesName = (recS && trim(recS.series)) || seriesGuess;
       if (seriesName) $('fSeries').value = seriesName;
       if (recS && trim(recS.author)) $('fAuthor').value = trim(recS.author);
       $('fGrSeriesUrlH').value = url;
@@ -786,10 +807,13 @@
       toast('已填作者' + (recA ? '（来自书库）' : '（来自链接解析）'));
     }
   }
-  function enrichFromGrBook(url) {
+  function enrichFromGrBook(url, titleGuess) {
     grFetch(url).then(function (t) {
       var info = parseBookText(t);
-      if (info.title) $('fTitle').value = info.title;
+      if (info.title && (!$('fTitle').value ||
+        (titleGuess && normTitle($('fTitle').value) === normTitle(titleGuess)))) {
+        $('fTitle').value = info.title;
+      }
       if (info.author) $('fAuthor').value = info.author;
       if (info.series) $('fSeries').value = info.series;
       if (info.authorUrl) $('fGrAuthorUrlH').value = info.authorUrl;
@@ -809,7 +833,23 @@
         toast('已联网补全' + (info.author ? '作者 ' : '') + (info.series ? '系列' : ''));
       }
     }).catch(function () {
-      toast('联网获取失败（网络原因）。已保留书名和书页链接，作者/系列请手动填或稍后再识别');
+      /* GR 通道失败 → Open Library 兜底填作者/系列名 */
+      var q = titleGuess || trim($('fTitle').value);
+      if (!q) { toast('联网获取失败（网络原因），请手动填写'); return; }
+      fetch('https://openlibrary.org/search.json?title=' + encodeURIComponent(q) +
+        '&fields=title,author_name,series&limit=3')
+        .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
+        .then(function (j) {
+          var doc = (j && j.docs || []).filter(function (d) { return d.author_name && d.author_name.length; })[0];
+          if (!doc) throw new Error('no doc');
+          $('fAuthor').value = (doc.author_name || []).join(', ');
+          if (doc.series && doc.series.length && !$('fSeries').value) $('fSeries').value = doc.series[0];
+          if (!$('fTitle').value && doc.title) $('fTitle').value = doc.title;
+          toast('Goodreads 通道失败，已用 Open Library 补全作者' + (doc.series && doc.series.length ? '和系列' : ''));
+        })
+        .catch(function () {
+          toast('联网获取失败（网络原因）。已保留书名和书页链接，作者/系列请手动填或稍后再识别');
+        });
     });
   }
   $('btnGrParse').addEventListener('click', recognizeGrUrl);

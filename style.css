@@ -275,6 +275,12 @@ button { font-family: inherit; cursor: pointer; }
   margin-top: 2px;
 }
 .suggest-sub .s-series { color: var(--primary-dark); }
+.suggest-sec {
+  padding: 7px 12px 3px;
+  font-size: 11px;
+  color: #9aa3b8;
+  background: #f7f8fc;
+}
 
 /* ===== 悬浮按钮 ===== */
 .fab {

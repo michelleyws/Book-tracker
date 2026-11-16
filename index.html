@@ -108,16 +108,22 @@
           </label>
         </div>
         <label class="field">
-          <span>购入来源</span>
-          <input type="text" id="fSource" placeholder="如 ebay、凤凤Mary、Kinokuniya…">
+          <span>购入来源（常用来源可点选，也可输入新的）</span>
+          <div class="title-wrap">
+            <input type="text" id="fSource" placeholder="如 ebay、凤凤Mary、Kinokuniya…" autocomplete="off">
+            <div class="suggest-box" id="sourceBox" hidden></div>
+          </div>
         </label>
         <label class="field">
           <span>购买链接（可选）</span>
           <input type="url" id="fSourceUrl" placeholder="https://… 留空则按来源名跳转搜索">
         </label>
         <label class="field">
-          <span>出版社</span>
-          <input type="text" id="fPublisher">
+          <span>出版社（常用社可点选，也可输入新的）</span>
+          <div class="title-wrap">
+            <input type="text" id="fPublisher" autocomplete="off">
+            <div class="suggest-box" id="publisherBox" hidden></div>
+          </div>
         </label>
         <label class="field">
           <span>备注</span>

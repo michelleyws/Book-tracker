@@ -249,7 +249,8 @@
   });
 
   /* ============ 书名自动补全 ============
-     从本地书库（已导入的记录）里匹配书名，选中后自动填充系列/作者 */
+     1) 书名匹配：选中后填完整记录
+     2) 系列匹配：书库里没这本，但系列记过 → 选中只填作者+系列，书名保留你输入的 */
   var suggestBox = $('suggestBox');
   function hideSuggest() { suggestBox.hidden = true; suggestBox.innerHTML = ''; }
   function fillFromBook(rec) {
@@ -259,44 +260,106 @@
     if (!$('fPublisher').value && trim(rec.publisher)) $('fPublisher').value = rec.publisher;
     if (!$('fGrUrl').value && trim(rec.goodreadsUrl)) $('fGrUrl').value = rec.goodreadsUrl;
   }
-  $('fTitle').addEventListener('input', function () {
-    var q = trim(this.value).toLowerCase();
+  function fillFromSeries(rec) {
+    if (trim(rec.series)) $('fSeries').value = rec.series;
+    if (trim(rec.author)) $('fAuthor').value = rec.author;
+  }
+  function updateTitleSuggest(val) {
+    var q = trim(val).toLowerCase();
     if (!q) { hideSuggest(); return; }
-    /* 同名书（同书名不同作者/系列）逐条列出，方便选对 */
-    var seen = {}, items = [];
+    /* 书名匹配（同名不同作者的逐条列出） */
+    var seen = {}, tItems = [];
     records.forEach(function (r) {
       var title = trim(r.title);
-      if (!title || items.length >= 8) return;
+      if (!title || tItems.length >= 6) return;
       if (title.toLowerCase().indexOf(q) === -1) return;
       var key = title.toLowerCase() + '|' + trim(r.author).toLowerCase() + '|' + trim(r.series).toLowerCase();
       if (seen[key]) return;
       seen[key] = 1;
-      items.push(r);
+      tItems.push(r);
     });
-    if (!items.length) { hideSuggest(); return; }
-    /* 只有一个候选且与输入完全一致 → 直接自动填充，不用点 */
-    if (items.length === 1 && items[0].title.toLowerCase() === q) {
-      fillFromBook(items[0]);
+    /* 系列匹配 */
+    var sSeen = {}, sItems = [];
+    records.forEach(function (r) {
+      var s = trim(r.series);
+      if (!s || sItems.length >= 4) return;
+      var k = s.toLowerCase();
+      if (k.indexOf(q) === -1 || sSeen[k]) return;
+      sSeen[k] = 1;
+      sItems.push(r);
+    });
+    if (!tItems.length && !sItems.length) { hideSuggest(); return; }
+    /* 只有一个候选书名且与输入完全一致 → 直接自动填充，不用点 */
+    if (tItems.length === 1 && !sItems.length && tItems[0].title.toLowerCase() === q) {
+      fillFromBook(tItems[0]);
       hideSuggest();
       return;
     }
-    suggestBox.innerHTML = items.map(function (r, i) {
-      return '<div class="suggest-item" data-i="' + i + '">' +
-        '<div class="suggest-title">' + esc(r.title) + '</div>' +
-        '<div class="suggest-sub">' + (trim(r.author) ? esc(r.author) : '作者未知') +
-        (trim(r.series) ? ' · <span class="s-series">' + esc(r.series) + '</span>' : '') +
-        '</div></div>';
-    }).join('');
+    var html = '';
+    if (tItems.length) {
+      html += '<div class="suggest-sec">书名匹配</div>' + tItems.map(function (r, i) {
+        return '<div class="suggest-item" data-t="' + i + '">' +
+          '<div class="suggest-title">' + esc(r.title) + '</div>' +
+          '<div class="suggest-sub">' + (trim(r.author) ? esc(r.author) : '作者未知') +
+          (trim(r.series) ? ' · <span class="s-series">' + esc(r.series) + '</span>' : '') +
+          '</div></div>';
+      }).join('');
+    }
+    if (sItems.length) {
+      html += '<div class="suggest-sec">系列匹配（选中填作者+系列）</div>' + sItems.map(function (r, i) {
+        return '<div class="suggest-item" data-s="' + i + '">' +
+          '<div class="suggest-title">📚 ' + esc(r.series) + '</div>' +
+          '<div class="suggest-sub">' + (trim(r.author) ? esc(r.author) : '作者未知') +
+          ' · 已记录 ' + records.filter(function (x) { return trim(x.series).toLowerCase() === trim(r.series).toLowerCase(); }).length + ' 本</div></div>';
+      }).join('');
+    }
+    suggestBox.innerHTML = html;
     suggestBox.hidden = false;
     suggestBox.querySelectorAll('.suggest-item').forEach(function (el) {
       el.addEventListener('mousedown', function (e) {
         e.preventDefault(); // 先于 blur 触发，保证能点到
-        fillFromBook(items[+el.dataset.i]);
+        if (el.dataset.t !== undefined) fillFromBook(tItems[+el.dataset.t]);
+        else fillFromSeries(sItems[+el.dataset.s]);
         hideSuggest();
       });
     });
-  });
+  }
+  $('fTitle').addEventListener('input', function () { updateTitleSuggest(this.value); });
   $('fTitle').addEventListener('blur', function () { setTimeout(hideSuggest, 150); });
+
+  /* ============ 常用值下拉（购入来源 / 出版社）============
+     可点选，也可输入列表里没有的新值 */
+  function attachCombo(inputId, boxId, pickValues) {
+    var input = $(inputId), box = $(boxId);
+    function show() {
+      var q = trim(input.value).toLowerCase();
+      var vals = pickValues();
+      var items = (q ? vals.filter(function (v) { return v.toLowerCase().indexOf(q) !== -1; }) : vals).slice(0, 8);
+      if (!items.length) { box.hidden = true; return; }
+      box.innerHTML = items.map(function (v) {
+        return '<div class="suggest-item" data-v="' + esc(v) + '">' +
+          '<div class="suggest-title">' + esc(v) + '</div></div>';
+      }).join('');
+      box.hidden = false;
+      box.querySelectorAll('.suggest-item').forEach(function (el) {
+        el.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          input.value = el.dataset.v;
+          box.hidden = true;
+        });
+      });
+    }
+    input.addEventListener('input', show);
+    input.addEventListener('focus', show);
+    input.addEventListener('blur', function () { setTimeout(function () { box.hidden = true; }, 150); });
+  }
+  function distinctValues(field) {
+    var s = {};
+    records.forEach(function (r) { var v = trim(r[field]); if (v) s[v] = 1; });
+    return Object.keys(s).sort(function (a, b) { return a.localeCompare(b); });
+  }
+  attachCombo('fSource', 'sourceBox', function () { return distinctValues('source'); });
+  attachCombo('fPublisher', 'publisherBox', function () { return distinctValues('publisher'); });
 
   /* ============ 弹层控制 ============ */
   function openModal(id) { $(id).hidden = false; document.body.style.overflow = 'hidden'; }
@@ -325,9 +388,6 @@
   });
 
   /* ============ Excel 导出 ============ */
-  var HEADERS = ['是否入手', '系列', '书名', '作者', '平装/精装', '购入日期', '购入来源', '价格', '出版社', '备注', '购买链接', 'Goodreads链接'];
-  var FIELDS = ['owned', 'series', 'title', 'author', 'binding', 'date', 'source', 'price', 'publisher', 'note', 'sourceUrl', 'goodreadsUrl'];
-
   function colName(i) {
     var s = '';
     i = i + 1;
@@ -337,30 +397,31 @@
 
   $('btnExport').onclick = function () {
     if (!records.length) { toast('暂无数据可导出'); return; }
-    var aoa = [HEADERS].concat(records.map(function (r) {
-      return FIELDS.map(function (f) { return r[f] == null ? '' : r[f]; });
+    /* 腾讯文档原格式：第 1 行空，表头在第 2 行（B~K），数据从第 3 行开始 */
+    var COLS = ['是否入手', '系列', '书名', '作者', '平装/精装', '购入日期', '购入来源', '价格', '出版社', '备注'];
+    var rowBlank = new Array(COLS.length + 1).fill('');
+    var aoa = [rowBlank, [''].concat(COLS)].concat(records.map(function (r) {
+      return ['', r.owned, r.series, r.title, r.author, r.binding, r.date,
+        r.source, r.price, r.publisher, r.note]
+        .map(function (v) { return v == null ? '' : v; });
     }));
     var ws = XLSX.utils.aoa_to_sheet(aoa);
-    var titleCol = HEADERS.indexOf('书名');
-    var sourceCol = HEADERS.indexOf('购入来源');
+    /* 超链接写回原单元格：系列/书名/作者/购入来源（有链接才写） */
     records.forEach(function (r, i) {
-      var row = i + 2;
-      if (trim(r.goodreadsUrl)) {
-        ws[colName(titleCol) + row] = ws[colName(titleCol) + row] || {};
-        ws[colName(titleCol) + row].l = { Target: trim(r.goodreadsUrl) };
-      }
-      if (trim(r.sourceUrl)) {
-        ws[colName(sourceCol) + row] = ws[colName(sourceCol) + row] || {};
-        ws[colName(sourceCol) + row].l = { Target: trim(r.sourceUrl) };
-      }
+      var row = i + 3;
+      var book = trim(r.grBookUrl) || trim(r.goodreadsUrl);
+      if (book) { ws['D' + row] = ws['D' + row] || {}; ws['D' + row].l = { Target: book }; }
+      if (trim(r.grSeriesUrl)) { ws['C' + row] = ws['C' + row] || {}; ws['C' + row].l = { Target: trim(r.grSeriesUrl) }; }
+      if (trim(r.grAuthorUrl)) { ws['E' + row] = ws['E' + row] || {}; ws['E' + row].l = { Target: trim(r.grAuthorUrl) }; }
+      if (trim(r.sourceUrl)) { ws['H' + row] = ws['H' + row] || {}; ws['H' + row].l = { Target: trim(r.sourceUrl) }; }
     });
-    ws['!cols'] = HEADERS.map(function (h) { return { wch: h === '备注' ? 40 : 16 }; });
+    ws['!cols'] = [{ wch: 4 }].concat(COLS.map(function (h) { return { wch: h === '备注' ? 40 : 16 }; }));
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '书籍购入');
     var d = new Date();
     var fname = '书籍购入-' + d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2) + '.xlsx';
     XLSX.writeFile(wb, fname);
-    toast('已导出 ' + records.length + ' 条');
+    toast('已导出 ' + records.length + ' 条（腾讯文档原格式）');
   };
 
   /* ============ Excel 导入 ============ */
@@ -430,11 +491,15 @@
         }
         var title = cell('title');
         if (!title) return;
-        var gr = '', src = '';
-        [colMap.title, colMap.series, colMap.author].forEach(function (ci) {
-          if (ci === undefined) return;
-          var u = links[colName(colBase + ci) + excelRow];
-          if (u && isGR(u) && !gr) gr = u;
+        /* 各列超链接分类：书名/系列/作者列上的 Goodreads 链接分开存，来源列存购买链接 */
+        var grBook = '', grSeries = '', grAuthor = '', src = '';
+        var grByCol = {};
+        grByCol[colMap.title] = function (u) { grBook = u; };
+        if (colMap.series !== undefined) grByCol[colMap.series] = function (u) { grSeries = u; };
+        if (colMap.author !== undefined) grByCol[colMap.author] = function (u) { grAuthor = u; };
+        Object.keys(grByCol).forEach(function (ci) {
+          var u = links[colName(colBase + +ci) + excelRow];
+          if (u && isGR(u)) grByCol[ci](u);
         });
         if (colMap.source !== undefined) {
           var su = links[colName(colBase + colMap.source) + excelRow];
@@ -456,14 +521,17 @@
           publisher: cell('publisher'),
           note: cell('note'),
           sourceUrl: cell('sourceUrl') || src,
-          goodreadsUrl: cell('goodreadsUrl') || gr
+          grBookUrl: grBook,
+          grSeriesUrl: grSeries,
+          grAuthorUrl: grAuthor,
+          goodreadsUrl: grBook || grSeries || grAuthor
         };
         var key = keyOf(recData);
         var exist = byKey[key];
         if (exist) {
           Object.keys(recData).forEach(function (k) {
-            if (k === 'goodreadsUrl' && !recData[k]) return;
-            if (k === 'sourceUrl' && !recData[k]) return;
+            if (!recData[k] && (k === 'goodreadsUrl' || k === 'sourceUrl' ||
+              k === 'grBookUrl' || k === 'grSeriesUrl' || k === 'grAuthorUrl')) return;
             exist[k] = recData[k];
           });
           updated++;

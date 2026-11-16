@@ -24,7 +24,8 @@
   </div>
   <div class="filter-row" id="filterRow">
     <button class="chip active" data-filter="all" type="button">全部</button>
-    <button class="chip" data-filter="yes" type="button">已入手</button>
+    <button class="chip" data-filter="yes" type="button">已到手</button>
+    <button class="chip" data-filter="pending" type="button">没到手</button>
     <button class="chip" data-filter="no" type="button">未入手</button>
     <select id="sortSelect" class="sort-select">
       <option value="date-desc">日期 新→旧</option>
@@ -67,7 +68,10 @@
         <label class="field required">
           <span>书名</span>
           <div class="title-wrap">
-            <input type="text" id="fTitle" required autocomplete="off">
+            <div class="input-with-btn">
+              <input type="text" id="fTitle" required autocomplete="off" placeholder="输入书名后可点「获取」从 Goodreads 自动填">
+              <button type="button" class="btn btn-small" id="btnGrFetch">获取</button>
+            </div>
             <div class="suggest-box" id="suggestBox" hidden></div>
           </div>
         </label>
@@ -81,10 +85,11 @@
         </label>
         <div class="field-pair">
           <label class="field">
-            <span>是否入手</span>
+            <span>状态</span>
             <select id="fOwned">
-              <option value="是">是</option>
-              <option value="否">否</option>
+              <option value="是">已到手</option>
+              <option value="没到手">买了 · 没到手</option>
+              <option value="否">未购买</option>
               <option value="">（未填）</option>
             </select>
           </label>

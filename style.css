@@ -95,6 +95,8 @@ button { font-family: inherit; cursor: pointer; }
   gap: 8px;
   align-items: center;
   margin-top: 10px;
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 .chip {
   border: 1px solid rgba(255, 255, 255, .4);
@@ -128,7 +130,7 @@ button { font-family: inherit; cursor: pointer; }
   margin: 12px auto 0;
   padding: 0 12px;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 .sum-tile {
@@ -184,6 +186,7 @@ button { font-family: inherit; cursor: pointer; }
   margin-top: 6px;
 }
 .owned-dot.yes { background: var(--green); }
+.owned-dot.pending { background: #f59e0b; }
 .owned-dot.no { background: #cbd2e0; }
 
 .book-main { flex: 1; min-width: 0; }
@@ -503,4 +506,5 @@ button { font-family: inherit; cursor: pointer; }
     max-width: 520px;
     max-height: 84vh;
   }
+  .summary-card { grid-template-columns: 1fr 1fr 1fr 1fr; }
 }

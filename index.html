@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1f2a44">
+<title>书籍购入记录</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-top">
+    <h1>📚 书籍购入</h1>
+    <div class="header-actions">
+      <button id="btnImport" class="btn btn-ghost" type="button">导入</button>
+      <button id="btnExport" class="btn btn-ghost" type="button">导出</button>
+    </div>
+  </div>
+  <div class="search-row">
+    <input type="search" id="searchInput" placeholder="🔍 搜索任意内容：书名 / 作者 / 系列 / 日期 / 价格 / 备注…" autocomplete="off">
+  </div>
+  <div class="filter-row" id="filterRow">
+    <button class="chip active" data-filter="all" type="button">全部</button>
+    <button class="chip" data-filter="yes" type="button">已入手</button>
+    <button class="chip" data-filter="no" type="button">未入手</button>
+    <select id="sortSelect" class="sort-select">
+      <option value="date-desc">日期 新→旧</option>
+      <option value="date-asc">日期 旧→新</option>
+      <option value="price-desc">价格 高→低</option>
+      <option value="price-asc">价格 低→高</option>
+      <option value="title">书名 A→Z</option>
+    </select>
+  </div>
+</header>
+
+<main>
+  <section class="summary-card" id="summaryCard"></section>
+  <div id="bookList" class="book-list"></div>
+</main>
+
+<div class="empty-state" id="emptyState" hidden>
+  <p>还没有记录</p>
+  <p class="empty-hint">点右下角 <b>＋</b> 手动添加，或点右上角 <b>导入</b> 你的 Excel 表</p>
+</div>
+
+<button id="btnAdd" class="fab" type="button" aria-label="添加">＋</button>
+
+<!-- 详情弹层 -->
+<div class="modal-mask" id="detailModal" hidden>
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-body" id="detailBody"></div>
+  </div>
+</div>
+
+<!-- 新增 / 编辑 表单弹层 -->
+<div class="modal-mask" id="formModal" hidden>
+  <div class="sheet sheet-tall">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-body">
+      <h2 id="formTitle">添加记录</h2>
+      <form id="bookForm">
+        <input type="hidden" id="fId">
+        <label class="field required">
+          <span>书名</span>
+          <div class="title-wrap">
+            <input type="text" id="fTitle" required autocomplete="off">
+            <div class="suggest-box" id="suggestBox" hidden></div>
+          </div>
+        </label>
+        <label class="field">
+          <span>作者</span>
+          <input type="text" id="fAuthor" placeholder="多位作者用逗号分隔">
+        </label>
+        <label class="field">
+          <span>系列</span>
+          <input type="text" id="fSeries">
+        </label>
+        <div class="field-pair">
+          <label class="field">
+            <span>是否入手</span>
+            <select id="fOwned">
+              <option value="是">是</option>
+              <option value="否">否</option>
+              <option value="">（未填）</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>装帧</span>
+            <select id="fBinding">
+              <option value="">（未填）</option>
+              <option value="平装">平装</option>
+              <option value="精装">精装</option>
+            </select>
+          </label>
+        </div>
+        <div class="field-pair">
+          <label class="field">
+            <span>购入日期</span>
+            <input type="date" id="fDate">
+          </label>
+          <label class="field">
+            <span>价格</span>
+            <input type="number" id="fPrice" step="any" inputmode="decimal" placeholder="如 65 或 24.99">
+          </label>
+        </div>
+        <label class="field">
+          <span>购入来源</span>
+          <input type="text" id="fSource" placeholder="如 ebay、凤凤Mary、Kinokuniya…">
+        </label>
+        <label class="field">
+          <span>购买链接（可选）</span>
+          <input type="url" id="fSourceUrl" placeholder="https://… 留空则按来源名跳转搜索">
+        </label>
+        <label class="field">
+          <span>出版社</span>
+          <input type="text" id="fPublisher">
+        </label>
+        <label class="field">
+          <span>备注</span>
+          <textarea id="fNote" rows="2"></textarea>
+        </label>
+        <label class="field">
+          <span>Goodreads 链接（可选）</span>
+          <div class="input-with-btn">
+            <input type="url" id="fGrUrl" placeholder="https://www.goodreads.com/…">
+            <button type="button" class="btn btn-small" id="btnGrSearch">搜索</button>
+          </div>
+        </label>
+        <p class="form-tip" id="grTip" hidden>已按书名+作者打开 Goodreads 搜索，找到对应书籍页面后，复制网址粘贴到上面即可。</p>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="btnCancel">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 导入确认弹层 -->
+<div class="modal-mask" id="importModal" hidden>
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-body">
+      <h2>导入 Excel</h2>
+      <p class="import-info">选择从腾讯文档导出的 .xlsx 文件。<br>按「书名+作者」匹配：已有的记录会被更新，新记录会添加。</p>
+      <label class="checkbox-row">
+        <input type="checkbox" id="importOverwrite">
+        <span>导入前清空现有全部数据（谨慎）</span>
+      </label>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" id="btnImportCancel">取消</button>
+        <button type="button" class="btn btn-primary" id="btnImportGo">选择文件</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

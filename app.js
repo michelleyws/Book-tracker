@@ -665,7 +665,17 @@
       } else {
         toast('已填好作者，这本书不属于任何系列');
       }
-    }).catch(function () { toast('读取书籍详情失败，可点「搜索」手动查'); hideSuggest(); });
+    }).catch(function () {
+      /* 详情页抓取失败：用搜索结果里已知的信息兜底 */
+      $('fTitle').value = item.title;
+      if (item.author) $('fAuthor').value = item.author;
+      if (item.series) $('fSeries').value = item.series;
+      $('fGrUrl').value = item.url;
+      $('fGrBookUrlH').value = item.url;
+      if (item.authorUrl) $('fGrAuthorUrlH').value = item.authorUrl;
+      toast('书籍详情抓取失败，已按搜索结果填好，系列页链接可稍后粘贴系列链接识别');
+      hideSuggest();
+    });
   }
   function importSeriesBooks(info) {
     toast('正在读取《' + info.series + '》系列书目…');
@@ -699,9 +709,116 @@
       toast('已添加 ' + news.length + ' 本《' + info.series + '》的书（状态：未购买）');
     }).catch(function () { toast('读取系列页面失败，稍后再试'); });
   }
+  /* ============ GR 链接智能识别 ============
+     粘贴 book/series/author 链接 → 解析出 ID 和名字 → 优先从本地书库匹配补全，
+     书库没有的书再联网抓页面补作者/系列 */
+  function parseGrUrl(url) {
+    url = trim(url);
+    var m = url.match(/goodreads\.com\/book\/show\/(\d+)(?:-([A-Za-z0-9-]+))?/i);
+    if (m) return { kind: 'book', id: m[1], slug: m[2] || '' };
+    m = url.match(/goodreads\.com\/series\/(\d+)(?:-([A-Za-z0-9-]+))?/i);
+    if (m) return { kind: 'series', id: m[1], slug: m[2] || '' };
+    m = url.match(/goodreads\.com\/author\/show\/(\d+)\.?([A-Za-z0-9-]+)?/i);
+    if (m) return { kind: 'author', id: m[1], slug: m[2] || '' };
+    return null;
+  }
+  function slugToName(slug) {
+    if (!slug) return '';
+    var s = decodeURIComponent(slug).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return s.replace(/\b([a-z])/g, function (c) { return c.toUpperCase(); });
+  }
+  function findRecByGr(kind, id) {
+    var pat = kind === 'series' ? '/series/' + id : '/' + kind + '/show/' + id;
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      var urls = kind === 'book' ? [r.grBookUrl, r.goodreadsUrl]
+        : kind === 'series' ? [r.grSeriesUrl]
+          : [r.grAuthorUrl];
+      for (var j = 0; j < urls.length; j++) {
+        if (urls[j] && urls[j].indexOf(pat) !== -1) return r;
+      }
+    }
+    return null;
+  }
+  function recognizeGrUrl() {
+    var url = trim($('fGrUrl').value);
+    if (!url || !/goodreads\.com/i.test(url)) {
+      toast('先把 Goodreads 链接粘贴到上面的框里（book/series/author 链接都可以）');
+      return;
+    }
+    var p = parseGrUrl(url);
+    if (!p) { toast('识别不了这个链接：需要 /book/show/、/series/ 或 /author/show/ 的网址'); return; }
+    if (p.kind === 'book') {
+      var rec = findRecByGr('book', p.id);
+      if (rec) {
+        fillFromBook(rec);
+        $('fGrUrl').value = url;
+        $('fGrBookUrlH').value = rec.grBookUrl || url;
+        toast('已从书库识别这本书，书名/作者/系列和三个链接都填好了');
+      } else {
+        if (!$('fTitle').value) $('fTitle').value = slugToName(p.slug);
+        $('fGrBookUrlH').value = url;
+        toast('书库还没有这本书：已填书名和书页链接，正在联网获取作者/系列…');
+        enrichFromGrBook(url);
+      }
+    } else if (p.kind === 'series') {
+      var recS = findRecByGr('series', p.id);
+      var seriesName = (recS && trim(recS.series)) || slugToName(p.slug);
+      if (seriesName) $('fSeries').value = seriesName;
+      if (recS && trim(recS.author)) $('fAuthor').value = trim(recS.author);
+      $('fGrSeriesUrlH').value = url;
+      if (recS && trim(recS.grAuthorUrl)) $('fGrAuthorUrlH').value = trim(recS.grAuthorUrl);
+      toast(recS ? '已从书库识别这个系列，系列和作者都填好了' : '已填系列名（来自链接），作者请补一下');
+      setTimeout(function () {
+        if (confirm('要读取《' + seriesName + '》的书单，把没记录的书自动加为「未购买」吗？\n（需要联网，失败的话不影响已填的内容）')) {
+          importSeriesBooks({
+            series: seriesName, seriesUrl: url,
+            author: trim($('fAuthor').value),
+            authorUrl: trim($('fGrAuthorUrlH').value)
+          });
+        }
+      }, 250);
+    } else if (p.kind === 'author') {
+      var recA = findRecByGr('author', p.id);
+      var authorName = (recA && trim(recA.author)) || slugToName(p.slug);
+      if (authorName && !$('fAuthor').value) $('fAuthor').value = authorName;
+      $('fGrAuthorUrlH').value = url;
+      toast('已填作者' + (recA ? '（来自书库）' : '（来自链接解析）'));
+    }
+  }
+  function enrichFromGrBook(url) {
+    grFetch(url).then(function (t) {
+      var info = parseBookText(t);
+      if (info.title) $('fTitle').value = info.title;
+      if (info.author) $('fAuthor').value = info.author;
+      if (info.series) $('fSeries').value = info.series;
+      if (info.authorUrl) $('fGrAuthorUrlH').value = info.authorUrl;
+      if (info.seriesUrl) $('fGrSeriesUrlH').value = info.seriesUrl;
+      if (info.series && info.seriesUrl) {
+        toast('已联网补全作者和系列');
+        setTimeout(function () {
+          if (confirm('这是《' + info.series + '》系列。要把系列里你还没记录的书自动加为「未购买」吗？')) {
+            importSeriesBooks({
+              series: info.series, seriesUrl: info.seriesUrl,
+              author: info.author || trim($('fAuthor').value),
+              authorUrl: info.authorUrl || ''
+            });
+          }
+        }, 250);
+      } else {
+        toast('已联网补全' + (info.author ? '作者 ' : '') + (info.series ? '系列' : ''));
+      }
+    }).catch(function () {
+      toast('联网获取失败（网络原因）。已保留书名和书页链接，作者/系列请手动填或稍后再识别');
+    });
+  }
+  $('btnGrParse').addEventListener('click', recognizeGrUrl);
+  $('fGrUrl').addEventListener('change', function () {
+    if (/goodreads\.com/i.test(this.value)) recognizeGrUrl();
+  });
   $('btnGrFetch').addEventListener('click', function () {
     var q = trim($('fTitle').value);
-    if (!q) { toast('先输入书名，再点「获取」'); return; }
+    if (!q && /goodreads\.com/i.test($('fGrUrl').value)) { recognizeGrUrl(); return; }
     var btn = this;
     btn.disabled = true;
     btn.textContent = '查询中…';

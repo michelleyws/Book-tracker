@@ -80,6 +80,8 @@ App 打开时会静默读一次这份 JSON，用来显示官网规则；真正�
 
 **想加别的订阅**：把它的 slug 加进 `sync_bs.py` 顶部的 `SOURCES` 列表（slug 就是 `/companies/<slug>` 那一段），再提交一次即可。
 
+订阅名字**支持缩写**：`TBB` / `The Broken Binding` 都会绑到 Broken Binding，`EK` / `Eldritch King` 都会绑到 Eldritch King，Bookish & Spice 写 `Bookish and Spice` / `B&S` 都认。
+
 ---
 
 ## 文件结构
@@ -121,7 +123,10 @@ assets/                             背景图
 - **网页条码扫描依赖 `BarcodeDetector`，iOS Safari 不支持**，所以 iPhone 上这条路走不通，用「选图片/拍照」即可。
 - **同名书合并需要人工判断**：即便按「书名唯一」匹配上了，确认框也会单独提示，请你核对。
 - **订阅提醒只能做到「页面开着的时候」**：静态网页没有后台推送能力，所以扣款提醒靠页面倒计时 + 导出 `.ics` 到系统日历。
-- Eldritch King **不在** booksandspreadsheets.com 收录的 245 家之列，它的配额只能手工维护。
+- **Eldritch King 不在 booksandspreadsheets.com 收录的 245 家之列**——它是 Curious King 团队 2026 年新开的
+  恐怖 / 暗黑小说品牌（官网 <https://eldritchking.com>），所以它的规则是**写在代码里的手工数据**：
+  双月刊 6 期/年、每年可跳 1 期（官网原文 *You may skip one title per year*）、Blood Pact £30 布面 /
+  Soul Pact £40 皮面、首期《World War Z》(Max Brooks) 预计 2027 年 3 月发货。官网改了要自己更新。
 - 汇率默认值是内置参考值，用之前建议先点一次「联网更新汇率」。
 
 ---

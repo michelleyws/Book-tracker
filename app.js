@@ -2059,10 +2059,12 @@
      —— The Broken Binding 实际订的是 SF&F；Fantasy / Sci-Fi 在 waitlist 上，先不绑。
      —— Bookish & Spice 订的是 Contemporary Romance。
      —— Eldritch King 那个站还没收录，留空，手动维护。 */
+  /* 按订阅名字自动绑定数据源。缩写也要认：用户台账里 TBB = The Broken Binding、EK = Eldritch King，
+     Bookish and Spice 通常写全称（但缩写也兼容）。 */
   var BS_DEFAULT = [
-    { re: /broken\s*binding/i, slug: 'broken-binding-sci-fi-%26-fantasy' },
-    { re: /bookish\s*[&＆]?\s*(?:and\s+)?spice/i, slug: 'bookish-%26-spice-contemporary-romance' },
-    { re: /eldritch/i, slug: '' }
+    { re: /broken\s*binding|\btbb\b/i, slug: 'broken-binding-sci-fi-%26-fantasy' },
+    { re: /bookish\s*[&＆]?\s*(?:and\s+)?spice|\bb\s*[&＆]\s*s\b/i, slug: 'bookish-%26-spice-contemporary-romance' },
+    { re: /eldritch|\bek\b/i, slug: '' }
   ];
   function bsDefaultFor(name) {
     var n = trim(name);
@@ -2075,12 +2077,17 @@
      界面上会显示、并随官网更新）；Eldritch King 该站未收录（245 家已核），
      数字由用户提供。只在订阅自己没填配额时套用 —— 用户一填就以用户填的为准。 */
   var SKIP_PRESET = [
-    { re: /broken\s*binding/i, total: 9, boxes: 12,
+    { re: /broken\s*binding|\btbb\b/i, total: 9, boxes: 12, site: 'https://thebrokenbindingsub.com/',
+      rules: '双月刊正在转月度，按月付 12 期/年计 · 每期 £25（Tier 2）/ £30（Tier 1）+ 运费 · 每年可跳 9 期',
       note: '按月付 12 期/年，可跳 9 期。官网 sc1SkipPolicy 写的是「3 skips allowed per year」，备注补了一句「2026 转月度盒子后 9 skips」——按月付算取 9。' },
-    { re: /bookish\s*[&＆]?\s*(?:and\s+)?spice/i, total: 3, boxes: 6,
+    { re: /bookish\s*[&＆]?\s*(?:and\s+)?spice/i, total: 3, boxes: 6, site: 'https://bookishandspice.com.au/',
+      rules: '双月刊 6 期/年 · 每年可跳 3 期，且不能连续跳超过 3 期 · 上一个月的最后一天前可跳',
       note: '双月刊 6 期/年，可跳 3 期（且不能连续跳超过 3 期）。官网 sc1SkipPolicy：3 skips allowed per year; no skipping more than 3 boxes in a row。' },
-    { re: /eldritch/i, total: 1, boxes: 6,
-      note: '6 期/年，可跳 1 期（booksandspreadsheets.com 未收录该商家，数字为手工填写）。' }
+    /* Eldritch King 不在 booksandspreadsheets.com 收录的 245 家里，所以下面这条是手工维护的，
+       资料取自它自己的官网 eldritchking.com（Curious King 团队的新品牌，恐怖/暗黑小说） */
+    { re: /eldritch|\bek\b/i, total: 1, boxes: 6, site: 'https://eldritchking.com/',
+      rules: '双月刊 6 期/年 · 首期《World War Z》(Max Brooks)，预计 2027 年 3 月发货 · Blood Pact £30 布面 / Soul Pact £40 皮面（Founder’s 皮面签名版，限 1,500 名额）＋ 运费 · 每年可跳 1 期 · 每期提前 1 个月公布书名，公布后 1 周内申请跳出',
+      note: '官网 eldritchking.com：双月刊 6 期/年，「You may skip one title per year」＝每年可跳 1 期。booksandspreadsheets.com 未收录这家（245 家已核），手工维护。' }
   ];
   function skipPresetFor(name) {
     var n = trim(name);
@@ -2306,10 +2313,18 @@
     if (s.bsInfo) return s.bsInfo;
     var sl = trim(s.bsSlug) || bsDefaultFor(s.name);
     var c = sl ? bsCompany(sl) : null;
-    if (!c) return null;
-    return { name: c.name, slug: c.slug, url: '', renews: c.renews, skipDeadline: c.skipDeadline,
-      skipPolicy: c.skipPolicy, note: c.note, cost: c.cost, ships: c.ships,
-      website: c.website, at: '' };
+    if (c) {
+      return { name: c.name, slug: c.slug, url: trim(c.website), renews: c.renews, skipDeadline: c.skipDeadline,
+        skipPolicy: c.skipPolicy, note: c.note, cost: c.cost, ships: c.ships,
+        website: c.website, at: '' };
+    }
+    /* 官网数据库没收录的（例如 Eldritch King），用预设里手工维护的规则撑起那行 */
+    var pre = skipPresetFor(s.name);
+    if (pre && trim(pre.rules)) {
+      return { local: true, name: s.name, slug: '', url: pre.site || '', renews: '', skipDeadline: '',
+        skipPolicy: pre.rules, note: '', cost: '', ships: '', website: pre.site || '', at: '' };
+    }
+    return null;
   }
   function subCardHtml(s) {
     var n = nextCharge(s), badge;
@@ -3007,6 +3022,7 @@
   /* 官网给的是自然语言规则（"5th of the month before"），只把「几号」这种无歧义的部分落库；
      整句原文一起存下来显示，避免把有歧义的月份规则猜错、导致提醒时间不对。 */
   function bsRulesText(c) {
+    if (c && c.local) return trim(c.skipPolicy);   /* 手工维护的整段说明 */
     var t = [];
     if (trim(c.renews)) t.push('扣款：' + trim(c.renews));
     if (trim(c.skipDeadline)) t.push('最后可 skip：' + trim(c.skipDeadline));

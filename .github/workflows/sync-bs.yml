@@ -1,0 +1,40 @@
+name: 同步订阅盒子数据（Books & Spreadsheets）
+
+# 每天抓一次 booksandspreadsheets.com，把「各家订阅的扣款规则 + 下一期书目」写成
+# data/bs-subs.json 提交回仓库。App 读的是同源的这份 JSON：
+# 不用 API Key、不占 Jina 额度、也没有跨域问题。
+#
+# 想加订阅就改 sync_bs.py 顶部的 SOURCES，把对应的 slug 加进去。
+
+on:
+  schedule:
+    - cron: '17 5 * * *'      # 每天 05:17 UTC（北京时间 13:17）
+  workflow_dispatch:          # 也可以在 Actions 页面手动点一下
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: 抓取（只用标准库，无需装依赖）
+        run: python sync_bs.py
+
+      - name: 有变化就提交
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bs-subs.json
+          if git diff --staged --quiet; then
+            echo "数据没有变化，不提交"
+          else
+            git commit -m "同步订阅盒子数据 $(date -u +%Y-%m-%d)"
+            git push
+          fi

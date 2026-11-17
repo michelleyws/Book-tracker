@@ -282,10 +282,12 @@ def main():
         "companies": clist,
         "errors": errors,
     }
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    out = os.path.join(root, "bs-subs.json")          # 仓库根目录：GitHub Pages 直接能取到
-    if not os.path.isdir(root):
-        out = "bs-subs.json"
+    # 输出到仓库根目录（GitHub Pages 直接能取到）。
+    # 注意：脚本可能放在仓库根、也可能放在 tools/ 下，所以按「自己所在的目录」判断，
+    # 不能写死成「上两级」——放到根目录时上两级就跑到仓库外面去了，Action 里会静默什么都不提交。
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.dirname(here) if os.path.basename(here) in ("tools", "scripts", "bin") else here
+    out = os.path.join(root, "bs-subs.json")
     with open(out, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
         f.write("\n")

@@ -70,6 +70,61 @@
   /* ============ 渲染 ============ */
   var state = { q: '', filter: 'all', sort: 'date-desc' };
 
+  /* ============ 长按多选 / 批量删除 ============ */
+  var selecting = false;      // 是否在多选模式
+  var selected = {};          // id -> 1
+  var lp = { timer: null, fired: false, x: 0, y: 0 };   // 长按计时
+
+  function enterSelectMode(id) {
+    selecting = true;
+    selected = {};
+    if (id) selected[id] = 1;
+    render();
+  }
+  function exitSelectMode() {
+    selecting = false;
+    selected = {};
+    render();
+  }
+  function selectedIds() {
+    return Object.keys(selected).filter(function (k) { return selected[k]; });
+  }
+  function toggleSelect(id) {
+    if (selected[id]) delete selected[id];
+    else selected[id] = 1;
+    render();
+  }
+  function updateSelectBar() {
+    var bar = $('selectBar');
+    if (selecting) document.body.classList.add('selecting');
+    else document.body.classList.remove('selecting');
+    if (!bar) return;
+    bar.hidden = !selecting;
+    if (!selecting) return;
+    var n = selectedIds().length;
+    if ($('selectCount')) $('selectCount').textContent = '已选 ' + n + ' 项';
+    if ($('btnBatchDelete')) $('btnBatchDelete').disabled = n === 0;
+  }
+  function batchDelete() {
+    var ids = selectedIds();
+    if (!ids.length) { toast('还没勾选任何记录'); return; }
+    var titles = ids.map(function (id) {
+      var r = records.find(function (x) { return x.id === id; });
+      return r ? trim(r.title) : '';
+    }).filter(Boolean);
+    var preview = titles.slice(0, 3).map(function (t) { return '《' + t + '》'; }).join('');
+    var more = titles.length > 3 ? ' 等共 ' + ids.length + ' 本' : '';
+    if (!confirm('删除这 ' + ids.length + ' 条记录？\n' + preview + more + '\n\n删掉之后不能撤回。')) return;
+    var del = {};
+    ids.forEach(function (id) { del[id] = 1; });
+    records = records.filter(function (r) { return !del[r.id]; });
+    save();
+    selecting = false;
+    selected = {};
+    render();
+    toast('已删除 ' + ids.length + ' 条');
+  }
+
   function filtered() {
     var q = state.q.toLowerCase();
     var list = records.filter(function (r) {
@@ -134,7 +189,8 @@
       if (trim(r.date)) tags.push('<span class="tag date">' + esc(r.date) + '</span>');
       if (trim(r.price)) tags.push('<span class="tag price">' + esc(r.price) + '</span>');
       if (trim(r.source)) tags.push('<span class="tag">' + esc(r.source) + '</span>');
-      return '<div class="book-card" data-id="' + r.id + '">' +
+      return '<div class="book-card' + (selected[r.id] ? ' selected' : '') + '" data-id="' + r.id + '">' +
+        (selecting ? '<span class="sel-dot' + (selected[r.id] ? ' on' : '') + '">✓</span>' : '') +
         '<span class="owned-dot ' + (r.owned === '是' ? 'yes' : r.owned === '没到手' ? 'pending' : 'no') + '"></span>' +
         '<div class="book-main">' +
         '<div class="book-title-row"><a class="book-title" data-gr="' + r.id + '" href="' + esc(grUrlFor(r)) + '" target="_blank" rel="noopener">' + esc(r.title || '（无书名）') + '</a></div>' +
@@ -144,12 +200,43 @@
         '</div><span class="chev">›</span></div>';
     }).join('');
 
+    /* 长按（触屏按住 0.55 秒 / 右键）进入多选；多选模式下点击 = 勾选/取消 */
     box.querySelectorAll('.book-card').forEach(function (card) {
+      var id = card.dataset.id;
+      card.addEventListener('pointerdown', function (e) {
+        if (selecting) return;
+        lp.fired = false;
+        lp.x = e.clientX; lp.y = e.clientY;
+        clearTimeout(lp.timer);
+        lp.timer = setTimeout(function () {
+          lp.fired = true;
+          if (navigator.vibrate) { try { navigator.vibrate(20); } catch (er) {} }
+          enterSelectMode(id);
+        }, 550);
+      });
+      /* 注意：不要在这里监听 pointerleave。实测 Chromium 会在 pointerdown 之后
+         立刻补发 pointerout/pointerleave，挂在它上面会把长按定时器瞬间清掉，
+         长按永远触发不了。只认抬起、取消和「移动超过 10px」。 */
+      ['pointerup', 'pointercancel'].forEach(function (evt) {
+        card.addEventListener(evt, function () { clearTimeout(lp.timer); });
+      });
+      card.addEventListener('pointermove', function (e) {
+        if (!lp.timer) return;
+        if (Math.abs(e.clientX - lp.x) > 10 || Math.abs(e.clientY - lp.y) > 10) clearTimeout(lp.timer);
+      });
+      card.addEventListener('contextmenu', function (e) {
+        if (selecting) return;
+        e.preventDefault();
+        enterSelectMode(id);
+      });
       card.addEventListener('click', function (e) {
+        if (lp.fired) { lp.fired = false; e.preventDefault(); return; }  // 长按刚触发，吞掉这次点击
+        if (selecting) { e.preventDefault(); toggleSelect(id); return; }
         if (e.target.closest('a')) return; // 点链接交给浏览器
-        openDetail(card.dataset.id);
+        openDetail(id);
       });
     });
+    updateSelectBar();
   }
 
   /* ============ 详情 ============ */
@@ -695,39 +782,142 @@
     grPickDone();
     fetchSeriesLinkAndOffer(item);
   }
+    /* ============ 系列书目：手动挑选后再导入 ============
+     Goodreads 的系列页会把「译本 / 盒装合集 / 分册」也算进同一系列
+     （实测 Dune 的 35 本里混着保加利亚语译本、5 Books Collection Set、
+     Dune Chronicles #2-6 等），所以绝不整批导入，一律先给用户勾选。 */
+  var serState = { series: '', author: '', seriesUrl: '', items: [] };
+
+  /* 疑似「非正传」的标记规则解析出来的名称；空字符串=正传 */
+  var FLAG_RULES = [
+    { name: '合集', re: /collection|box\s*set|boxed|omnibus|complete|trilogy|set of|bundle|#\s*\d+\s*[-–]\s*\d+|捆绑|套装|合集|全套|文库/i },
+    /* 各语言里「第 N 册」的说法都要认：英语 part / 芬兰语 osa / 德语 teil·band /
+       法语 tome / 俄语 том·часть …（实测漏过 "Dyyni: Ensimmäinen osa"） */
+    { name: '分册', re: /\b(osa|teil|band|tome|tom|volume|том|часть)\b|part\s*\d|\d\s*of\s*\d|\/\s*\d|分册|上册|下册|上卷|下卷/i }
+  ];
+  function flagOf(title, seriesName) {
+    var t = trim(title);
+    /* "<系列名> 2" / "<系列名> II" 这类：同一本书被拆册的版本（实测 Dune I / Dune 2 属于此类） */
+    var sn = trim(seriesName);
+    if (sn) {
+      var lowT = t.toLowerCase(), lowSn = sn.toLowerCase();
+      if (lowT.indexOf(lowSn) === 0) {
+        var rest = t.slice(sn.length).trim();
+        if (/^(?:[IVXLC]{1,5}|\d{1,3})$/.test(rest)) return '分册';
+      }
+    }
+    for (var i = 0; i < FLAG_RULES.length; i++) {
+      if (FLAG_RULES[i].re.test(t)) return FLAG_RULES[i].name;
+    }
+    return '';
+  }
+  /* 去重/比对用的 key。注意不能用 normTitle —— 它只保留 [a-z0-9]，
+     纯西里尔/中日韩的标题会被清成空串，那些「译本」就会被静默丢掉
+     （实测 35 本里少了 5 本）。这里只去标点，保留任意语种的字母。 */
+  function bookKey(s) {
+    return trim(s).toLowerCase().replace(/[^a-z0-9\u00a1-\uffff]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  /* 纯拉丁字符（英文/西欧语）标题？用来识别译本：只有当整个系列以拉丁标题为主时，
+     非拉丁标题才判为译本，避免把本来就是中文的系列全部误标。 */
+  function isLatinTitle(s) {
+    return /^[\u0000-\u024F\u2000-\u206F\u20A0-\u20CF\s]*$/.test(trim(s));
+  }
+  function openSeriesPicker(info, books) {
+    var existing = {};
+    records.forEach(function (r) {
+      if (bookKey(r.series) === bookKey(info.series)) existing[bookKey(r.title)] = 1;
+    });
+    var latinCount = 0;
+    books.forEach(function (b) { if (isLatinTitle(b.title)) latinCount++; });
+    var mostlyLatin = latinCount >= books.length / 2;
+    var seen = {}, items = [];
+    books.forEach(function (b) {
+      var t = trim(b.title);
+      if (!t) return;                       // 取不到书名的（兜底路径的噪声）不列出来
+      var key = bookKey(t);
+      if (!key) return;
+      if (seen[key]) return;
+      seen[key] = 1;
+      var flag = (mostlyLatin && !isLatinTitle(t)) ? '译本' : flagOf(t, info.series);
+      var isExisting = !!existing[key];
+      items.push({
+        title: t, url: b.url, flag: flag,
+        existing: isExisting,
+        checked: !isExisting && !flag      // 默认勾正传，带标记的默认不勾
+      });
+    });
+    if (!items.length) { toast('没解析到可添加的书目'); return; }
+    serState = { series: info.series, author: info.author || '', seriesUrl: info.seriesUrl || '', items: items };
+    var already = items.filter(function (x) { return x.existing; }).length;
+    var flagged = items.filter(function (x) { return !x.existing && x.flag; }).length;
+    $('seriesTitle').textContent = '《' + info.series + '》系列书目';
+    $('seriesHint').innerHTML =
+      '共 ' + items.length + ' 条' +
+      (already ? '，其中 <b>' + already + '</b> 条你已经在书库里' : '') +
+      (flagged ? '，另有 <b>' + flagged + '</b> 条带标记' : '') +
+      '。<br>Goodreads 会把译本 / 盒装合集 / 分册算进同一个系列，所以这里逐条勾选。' +
+      '已默认勾上正传，带标记的默认不勾 —— 需要就自己点上。';
+    renderSeriesList();
+    openModal('seriesModal');
+  }
+  function renderSeriesList() {
+    $('seriesList').innerHTML = serState.items.map(function (it, i) {
+      var tags = '';
+      if (it.existing) tags += '<span class="tag">已在书库</span>';
+      if (it.flag) tags += '<span class="tag flag">' + esc(it.flag) + '</span>';
+      return '<label class="series-item' + (it.existing ? ' existing' : '') + '" data-i="' + i + '">' +
+        '<input type="checkbox"' + (it.checked ? ' checked' : '') + (it.existing ? ' disabled' : '') + '>' +
+        '<span><span class="si-title">' + esc(it.title) + '</span>' +
+        (tags ? '<span class="si-sub">' + tags + '</span>' : '') +
+        '</span></label>';
+    }).join('');
+    $('seriesList').querySelectorAll('.series-item').forEach(function (el) {
+      var cb = el.querySelector('input');
+      cb.addEventListener('change', function () {
+        serState.items[+el.dataset.i].checked = cb.checked;
+        updateSeriesCount();
+      });
+    });
+    updateSeriesCount();
+  }
+  function updateSeriesCount() {
+    var n = serState.items.filter(function (x) { return x.checked && !x.existing; }).length;
+    $('btnSeriesAdd').textContent = n ? '添加选中的 ' + n + ' 本' : '添加选中的';
+    $('btnSeriesAdd').disabled = n === 0;
+  }
+  function addSelectedSeriesBooks() {
+    var picked = serState.items.filter(function (x) { return x.checked && !x.existing; });
+    if (!picked.length) { toast('还没勾选任何书'); return; }
+    picked.forEach(function (b) {
+      records.push({
+        id: uid(),
+        title: b.title,
+        author: serState.author,
+        series: serState.series,
+        owned: '否',
+        binding: '', date: '', source: '', sourceUrl: '',
+        price: '', publisher: '', note: '',
+        grBookUrl: b.url,
+        grSeriesUrl: serState.seriesUrl || '',
+        grAuthorUrl: '',
+        goodreadsUrl: b.url
+      });
+    });
+    save(); render();
+    closeModal('seriesModal');
+    toast('已添加 ' + picked.length + ' 本《' + serState.series + '》的书（状态：未购买）');
+  }
   function importSeriesBooks(info) {
     toast('正在读取《' + info.series + '》系列书目…');
     var booksP = info.seriesUrl ? grSeriesBooks(info.seriesUrl) : Promise.reject(new Error('no url'));
     booksP = booksP.catch(function () {
-      return ddgBookSearch('\"' + info.series + '\"').then(function (books) {
+      return ddgBookSearch('"' + info.series + '"').then(function (books) {
         return books.map(function (b) { return { title: b.title, url: b.url }; });
       });
     });
     booksP.then(function (books) {
-      if (!books.length) { toast('没解析到系列书目'); return; }
-      var existing = {};
-      records.forEach(function (r) {
-        if (normTitle(r.series) === normTitle(info.series)) existing[normTitle(r.title)] = 1;
-      });
-      var news = books.filter(function (b) { return !existing[normTitle(b.title)]; }).slice(0, 40);
-      if (!news.length) { toast('系列里的书都已经在你的书库了'); return; }
-      if (!confirm('系列《' + info.series + '》找到 ' + books.length + ' 本，其中 ' + news.length +
-        ' 本不在你的书库。\n\n添加这 ' + news.length + ' 本为「未购买」吗？')) return;
-      news.forEach(function (b) {
-        records.push({
-          id: uid(),
-          title: b.title,
-          author: b.author || info.author,
-          series: info.series,
-          owned: '否',
-          binding: '', date: '', source: '', sourceUrl: '',
-          price: '', publisher: '', note: '',
-          grBookUrl: b.url, grSeriesUrl: info.seriesUrl || '', grAuthorUrl: '',
-          goodreadsUrl: b.url
-        });
-      });
-      save(); render();
-      toast('已添加 ' + news.length + ' 本《' + info.series + '》的书（状态：未购买）');
+      if (!books || !books.length) { toast('没解析到系列书目'); return; }
+      openSeriesPicker(info, books);
     }).catch(function () { toast('读取系列书目失败（网络原因），稍后再试'); });
   }
   /* 三源并行，按可信度合并：
@@ -965,7 +1155,7 @@
       document.body.style.overflow = '';
     }
   }
-  ['detailModal', 'formModal', 'importModal', 'settingsModal'].forEach(function (mid) {
+  ['detailModal', 'formModal', 'importModal', 'settingsModal', 'seriesModal'].forEach(function (mid) {
     $(mid).addEventListener('click', function (e) { if (e.target === $(mid)) closeModal(mid); });
   });
   $('btnSettings').onclick = function () {
@@ -982,6 +1172,32 @@
   };
 
   /* ============ 事件绑定 ============ */
+  /* 多选操作条 */
+  $('btnSelectAll').onclick = function () {
+    filtered().forEach(function (r) { selected[r.id] = 1; });
+    render();
+  };
+  $('btnSelectNone').onclick = function () { selected = {}; render(); };
+  $('btnBatchDelete').onclick = batchDelete;
+  $('btnExitSelect').onclick = exitSelectMode;
+  /* 系列书目挑选弹层 */
+  $('btnSeriesCancel').onclick = function () { closeModal('seriesModal'); };
+  $('btnSeriesAdd').onclick = addSelectedSeriesBooks;
+  $('btnSerAll').onclick = function () {
+    serState.items.forEach(function (x) { if (!x.existing) x.checked = true; });
+    renderSeriesList();
+  };
+  $('btnSerNone').onclick = function () {
+    serState.items.forEach(function (x) { x.checked = false; });
+    renderSeriesList();
+  };
+  $('btnSerClean').onclick = function () {
+    serState.items.forEach(function (x) { x.checked = !x.existing && !x.flag; });
+    renderSeriesList();
+  };
+
+  $('btnSelectMode').onclick = function () { enterSelectMode(null); };
+
   $('btnAdd').onclick = function () { openForm(null); };
   $('btnCancel').onclick = function () { closeModal('formModal'); };
   $('searchInput').addEventListener('input', function () { state.q = this.value; render(); });

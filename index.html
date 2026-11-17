@@ -15,6 +15,7 @@
   <div class="header-top">
     <h1>📚 书籍购入</h1>
     <div class="header-actions">
+      <button id="btnSelectMode" class="btn btn-ghost" type="button">多选</button>
       <button id="btnSettings" class="btn btn-ghost" type="button">设置</button>
       <button id="btnImport" class="btn btn-ghost" type="button">导入</button>
       <button id="btnExport" class="btn btn-ghost" type="button">导出</button>
@@ -38,8 +39,20 @@
   </div>
 </header>
 
+<!-- 多选操作条：长按（触屏）或右键（鼠标）任一条目后出现 -->
+<div class="select-bar" id="selectBar" hidden>
+  <span class="select-count" id="selectCount">已选 0 项</span>
+  <div class="select-actions">
+    <button class="btn btn-small" type="button" id="btnSelectAll">全选</button>
+    <button class="btn btn-small" type="button" id="btnSelectNone">全不选</button>
+    <button class="btn btn-small btn-danger" type="button" id="btnBatchDelete">删除</button>
+    <button class="btn btn-small" type="button" id="btnExitSelect">退出</button>
+  </div>
+</div>
+
 <main>
   <section class="summary-card" id="summaryCard"></section>
+  <p class="list-hint" id="listHint">长按任一条目（电脑上按右键）→ 多选 → 批量删除</p>
   <div id="bookList" class="book-list"></div>
 </main>
 
@@ -189,6 +202,27 @@
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" id="btnImportCancel">取消</button>
         <button type="button" class="btn btn-primary" id="btnImportGo">选择文件</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 系列书目挑选弹层：Goodreads 会把译本/合集/分册算进同一系列，所以逐条勾选 -->
+<div class="modal-mask" id="seriesModal" hidden>
+  <div class="sheet sheet-tall">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-body">
+      <h2 id="seriesTitle">系列书目</h2>
+      <p class="import-info" id="seriesHint"></p>
+      <div class="series-tools">
+        <button class="btn btn-small" type="button" id="btnSerAll">全选</button>
+        <button class="btn btn-small" type="button" id="btnSerNone">全不选</button>
+        <button class="btn btn-small" type="button" id="btnSerClean">只选无标记</button>
+      </div>
+      <div class="series-list" id="seriesList"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" type="button" id="btnSeriesCancel">取消</button>
+        <button class="btn btn-primary" type="button" id="btnSeriesAdd">添加选中的</button>
       </div>
     </div>
   </div>

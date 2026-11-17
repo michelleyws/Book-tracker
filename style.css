@@ -443,6 +443,16 @@ button { font-family: inherit; cursor: pointer; }
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+/* 网格子项的 min-width 默认是 auto（= min-content），原生日期控件的固有宽度会把
+   自己那一列顶破、压到右边那格上 —— 手机上「购入日期」和「价格」重叠就是这么来的。
+   显式归零，它才会被压缩回格子里。 */
+.field-pair > .field { min-width: 0; }
+.field-pair input, .field-pair select { min-width: 0; }
+/* 手机上「日期 + 价格」改成上下两行：日期控件本身就要占掉大半屏，并排放必然挤。
+   状态/装帧 两个下拉框窄，保持并排。 */
+@media (max-width: 560px) {
+  .pair-date { grid-template-columns: 1fr; gap: 0; }
+}
 .input-with-btn {
   display: flex;
   gap: 8px;

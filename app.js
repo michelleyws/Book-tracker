@@ -163,7 +163,7 @@
       '<div class="sum-tile">' +
       '<div class="sum-num green">' + (got + pending) + '</div>' +
       '<div class="sum-money">' + money + '</div>' +
-      '<div class="sum-label">已购买（含没到手）· 花了多少钱</div></div>' +
+      '<div class="sum-label">已购买 · 含没到手</div></div>' +
       '<div class="sum-tile">' +
       '<div class="sum-num orange">' + pending + '</div>' +
       '<div class="sum-label">买了 · 没到手</div></div>' +
@@ -584,7 +584,9 @@
           var raw = String(b.bookUrl || ('/book/show/' + b.bookId));
           items.push({
             title: b.bookTitleBare || b.title || '',
-            url: GR_SITE + (raw.indexOf('http') === 0 ? raw.replace(/^https?:\/\/[^/]+/, '') : raw)
+            url: GR_SITE + (raw.indexOf('http') === 0 ? raw.replace(/^https?:\/\/[^/]+/, '') : raw),
+            author: (b.author && b.author.name) || '',
+            authorUrl: (b.author && b.author.profileUrl) || ''
           });
         }
       }
@@ -598,7 +600,8 @@
         seen[m[1]] = 1;
         items.push({
           title: titleFromSlug(m[2]),
-          url: GR_SITE + '/book/show/' + m[1] + (m[2] ? '-' + m[2] : '')
+          url: GR_SITE + '/book/show/' + m[1] + (m[2] ? '-' + m[2] : ''),
+          author: '', authorUrl: ''
         });
       }
       if (!items.length) throw new Error('no books');
@@ -616,28 +619,60 @@
       return lw.replace(/\b([a-z])/g, function (c) { return c.toUpperCase(); });
     }).join(' ');
   }
-  /* 书页 HTML → 系列页链接。实测 Dune 书页里有 2 个：主系列 + 母系列（Dune Universe） */
-  function grSeriesUrlsFromBook(bookUrl) {
-    return grFetchHtml(bookUrl).then(function (html) {
-      var all = html.match(/\/series\/\d+[a-z0-9-]*/gi) || [];
-      var uniq = all.filter(function (v, i) { return all.indexOf(v) === i; });
-      if (!uniq.length) throw new Error('no-series');
-      return {
-        primary: GR_SITE + uniq[0],
-        parents: uniq.slice(1).map(function (u) { return GR_SITE + u; })
-      };
-    });
-  }
-  /* 书页 HTML → 书名/系列名/序号。og:title 形如 "Dune (Dune, #1)"，一次到位，不用拿 slug 猜 */
-  function grMetaFromBook(bookUrl) {
-    return grFetchHtml(bookUrl).then(function (html) {
-      var m = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i);
-      if (!m) throw new Error('no og:title');
-      var og = decodeEntities(m[1]).trim();
+  /* 解析一个书页的原始 HTML，一次把四样都取出来，避免为一本书发多次请求：
+     书名 / 系列名 / 序号、系列页链接、作者页链接、作者名。 */
+  function parseBookPage(html) {
+    var out = { title: '', series: '', seriesNum: '', author: '', authorUrl: '', seriesUrl: '', parentSeries: [] };
+    /* 1) 系列页链接 —— 实测 Dune 书页里有 2 个（主系列 + 母系列 Dune Universe），第一个是主系列 */
+    var all = html.match(/\/series\/\d+[a-z0-9-]*/gi) || [];
+    var uniq = all.filter(function (v, i) { return all.indexOf(v) === i; });
+    if (uniq.length) {
+      out.seriesUrl = GR_SITE + uniq[0];
+      out.parentSeries = uniq.slice(1).map(function (u) { return GR_SITE + u; });
+    }
+    /* 2) 作者页链接 / 作者名 —— 优先 ld+json（权威），退化到页面里第一个 /author/show 链接 */
+    var ld = html.match(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/i);
+    if (ld) {
+      try {
+        var j = JSON.parse(ld[1]);
+        var a = j && j.author;
+        if (a && !a.length) a = [a];
+        if (a && a[0]) {
+          if (a[0].url) out.authorUrl = a[0].url;
+          if (a[0].name) out.author = a[0].name;
+        }
+      } catch (e) { /* 落到下面的兜底 */ }
+    }
+    if (!out.authorUrl) {
+      var am = html.match(/\/author\/show\/\d+[.\-]?[A-Za-z0-9_-]*/);
+      if (am) out.authorUrl = GR_SITE + am[0];
+    }
+    /* 3) 书名 / 系列名 / 序号 —— og:title 形如 "Dune (Dune, #1)" */
+    var mt = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i);
+    if (mt) {
+      var og = decodeEntities(mt[1]).trim();
       var info = parseBookTextLine(og);
-      if (!info.title) info.title = og;
+      out.title = info.title || og;
+      out.series = info.series;
+      out.seriesNum = info.seriesNum;
+    }
+    return out;
+  }
+  function grBookPageInfo(bookUrl) {
+    return grFetchHtml(bookUrl).then(function (html) {
+      var info = parseBookPage(html);
+      if (!info.title && !info.seriesUrl && !info.authorUrl) throw new Error('parse-failed');
       return info;
     });
+  }
+  /* 同一个书页在一次操作里可能被多个地方需要，缓存住，保证只发一次请求 */
+  var pageCache = {};
+  function grBookPageCached(bookUrl) {
+    var u = trim(bookUrl);
+    if (!pageCache[u]) {
+      pageCache[u] = grBookPageInfo(u).catch(function (e) { delete pageCache[u]; throw e; });
+    }
+    return pageCache[u];
   }
   /* 只在书名精确相等时采用 —— 无精确匹配宁可不用，也不要把同名书的信息填错 */
   function pickExact(books, q) {
@@ -704,10 +739,21 @@
         }
       }, 250);
     }
+    /* 顺手补作者页链接 —— 导出 Excel 时「作者」列也要有超链接。
+       走页面缓存，所以即使下面还要抓同一个书页，整轮也总共只发一次请求。 */
+    if (hit.url && !trim($('fGrAuthorUrlH').value)) {
+      grBookPageCached(hit.url).then(function (p2) {
+        if (p2.authorUrl && !trim($('fGrAuthorUrlH').value)) $('fGrAuthorUrlH').value = p2.authorUrl;
+        if (p2.author && !trim($('fAuthor').value)) $('fAuthor').value = p2.author;
+      }).catch(function () {});
+    }
     var p = hit.seriesUrl ? Promise.resolve(hit.seriesUrl) : Promise.reject(new Error('no url'));
     p = p.catch(function () {
       if (!hit.url) throw new Error('no book url');
-      return grSeriesUrlsFromBook(hit.url).then(function (s) { return s.primary; });
+      return grBookPageCached(hit.url).then(function (p2) {
+        if (!p2.seriesUrl) throw new Error('no-series');
+        return p2.seriesUrl;
+      });
     });
     p = p.catch(function () {
       return ddgFetch('site:goodreads.com ' + hit.series + ' series').then(function (md) {
@@ -779,14 +825,60 @@
     if (item.series) $('fSeries').value = item.series;
     $('fGrUrl').value = item.url;
     $('fGrBookUrlH').value = item.url;
+    if (item.authorUrl && !trim($('fGrAuthorUrlH').value)) $('fGrAuthorUrlH').value = item.authorUrl;
     grPickDone();
     fetchSeriesLinkAndOffer(item);
   }
-    /* ============ 系列书目：手动挑选后再导入 ============
+    /* ============ 补全「系列 / 作者」链接 ============
+     导出 Excel 时「系列」「作者」两列要有超链接，前提是记录里存了对应 Goodreads 页面的地址。
+     早期记录基本没存，这里就按【当前筛选出的记录】去补：每本 1 次网络请求，所以一次限量 20 条。 */
+  var backfilling = false;
+  function backfillTargets() {
+    return filtered().filter(function (r) {
+      var book = trim(r.grBookUrl) || trim(r.goodreadsUrl);
+      return book && !(trim(r.grSeriesUrl) && trim(r.grAuthorUrl));
+    });
+  }
+  function backfillLinks() {
+    if (backfilling) { toast('正在补全，请稍候…'); return; }
+    var targets = backfillTargets();
+    if (!targets.length) { toast('当前筛选结果里没有需要补全的记录（都已有系列和作者链接）'); return; }
+    var batch = targets.slice(0, 20);
+    backfilling = true;
+    var btn = $('btnBackfill');
+    if (btn) { btn.disabled = true; btn.textContent = '补全中 0/' + batch.length; }
+    var done = 0, ok = 0, i = 0, CONC = 3;
+    function step() {
+      if (i >= batch.length) {
+        backfilling = false;
+        if (btn) { btn.disabled = false; btn.textContent = '补全缺失链接（最多 20 条）'; }
+        render();
+        var left = targets.length - batch.length;
+        toast('补全完成：成功 ' + ok + '/' + batch.length + ' 条' +
+          (left > 0 ? '；还剩 ' + left + ' 条，再点一次继续' : ''));
+        return;
+      }
+      var r = batch[i++];
+      grBookPageCached(trim(r.grBookUrl) || trim(r.goodreadsUrl)).then(function (p) {
+        if (p.seriesUrl) r.grSeriesUrl = p.seriesUrl;
+        if (p.authorUrl) r.grAuthorUrl = p.authorUrl;
+        if (!trim(r.series) && p.series) r.series = p.series;
+        if (!trim(r.author) && p.author) r.author = p.author;
+        save(); ok++;
+      }).catch(function () {}).then(function () {
+        done++;
+        if (btn) btn.textContent = '补全中 ' + done + '/' + batch.length;
+        step();
+      });
+    }
+    for (var k = 0; k < CONC; k++) step();
+  }
+
+  /* ============ 系列书目：手动挑选后再导入 ============
      Goodreads 的系列页会把「译本 / 盒装合集 / 分册」也算进同一系列
      （实测 Dune 的 35 本里混着保加利亚语译本、5 Books Collection Set、
      Dune Chronicles #2-6 等），所以绝不整批导入，一律先给用户勾选。 */
-  var serState = { series: '', author: '', seriesUrl: '', items: [] };
+  var serState = { series: '', author: '', seriesUrl: '', authorUrl: '', items: [] };
 
   /* 疑似「非正传」的标记规则解析出来的名称；空字符串=正传 */
   var FLAG_RULES = [
@@ -842,12 +934,14 @@
       var isExisting = !!existing[key];
       items.push({
         title: t, url: b.url, flag: flag,
+        author: b.author || '', authorUrl: b.authorUrl || '',
         existing: isExisting,
         checked: !isExisting && !flag      // 默认勾正传，带标记的默认不勾
       });
     });
     if (!items.length) { toast('没解析到可添加的书目'); return; }
-    serState = { series: info.series, author: info.author || '', seriesUrl: info.seriesUrl || '', items: items };
+    serState = { series: info.series, author: info.author || '', seriesUrl: info.seriesUrl || '',
+                 authorUrl: info.authorUrl || '', items: items };
     var already = items.filter(function (x) { return x.existing; }).length;
     var flagged = items.filter(function (x) { return !x.existing && x.flag; }).length;
     $('seriesTitle').textContent = '《' + info.series + '》系列书目';
@@ -892,14 +986,14 @@
       records.push({
         id: uid(),
         title: b.title,
-        author: serState.author,
+        author: b.author || serState.author,
         series: serState.series,
         owned: '否',
         binding: '', date: '', source: '', sourceUrl: '',
         price: '', publisher: '', note: '',
         grBookUrl: b.url,
         grSeriesUrl: serState.seriesUrl || '',
-        grAuthorUrl: '',
+        grAuthorUrl: b.authorUrl || serState.authorUrl || '',
         goodreadsUrl: b.url
       });
     });
@@ -930,15 +1024,10 @@
     var q = titleGuess || trim($('fTitle').value);
     var isBook = !!(url && /goodreads\.com\/book\/show\//i.test(url));
     var bookP = isBook
-      ? Promise.all([
-          grMetaFromBook(url).catch(function () { return null; }),
-          grSeriesUrlsFromBook(url).catch(function () { return null; })
-        ]).then(function (r) {
-          var m = r[0], s = r[1];
-          if (!m) return null;
-          return { title: m.title, author: '', series: m.series,
-                   seriesNum: m.seriesNum, seriesUrl: s ? s.primary : '' };
-        })
+      ? grBookPageCached(url).then(function (p) {
+          return { title: p.title, author: p.author, series: p.series, seriesNum: p.seriesNum,
+                   seriesUrl: p.seriesUrl, authorUrl: p.authorUrl };
+        }).catch(function () { return null; })
       : Promise.resolve(null);
     var grP = q ? grAutoComplete(q).then(function (books) {
         var hit = pickExact(books, q);
@@ -972,18 +1061,20 @@
         toast('没查到这本书：请把书名填上，或换一条 Goodreads 书页链接');
         return;
       }
-      var author = first('author'), series = first('series'), seriesUrl = first('seriesUrl');
+      var author = first('author'), series = first('series'),
+          seriesUrl = first('seriesUrl'), authorUrl = first('authorUrl');
       $('fTitle').value = title;
       if (author) $('fAuthor').value = author;
       if (series) $('fSeries').value = series;
       if (seriesUrl) $('fGrSeriesUrlH').value = seriesUrl;
+      if (authorUrl) $('fGrAuthorUrlH').value = authorUrl;
       if (!series && !isBook) {
         toast('已填好：' + title + (author ? ' / ' + author : '') +
           '（没查到系列信息；若确认有系列，可粘贴该书的 Goodreads 链接再识别一次）');
       }
       fetchSeriesLinkAndOffer({
-        title: title, author: author, series: series,
-        seriesNum: first('seriesNum'), seriesUrl: seriesUrl, url: url || ''
+        title: title, author: author, series: series, seriesNum: first('seriesNum'),
+        seriesUrl: seriesUrl, authorUrl: authorUrl, url: url || ''
       });
     });
   }
@@ -1127,7 +1218,8 @@
       if (settled || !books.length) throw new Error('gr-empty');
       stop();
       showGrCandidates(books.map(function (b) {
-        return { title: b.title, author: b.author, series: b.series, url: b.url };
+        return { title: b.title, author: b.author, series: b.series,
+                 url: b.url, authorUrl: b.authorUrl };
       }), 'Goodreads 结果（点选自动填作者/系列，并读取整条系列书目）');
     }).catch(function () {
       if (settled) return;
@@ -1197,6 +1289,7 @@
   };
 
   $('btnSelectMode').onclick = function () { enterSelectMode(null); };
+  if ($('btnBackfill')) $('btnBackfill').onclick = backfillLinks;
 
   $('btnAdd').onclick = function () { openForm(null); };
   $('btnCancel').onclick = function () { closeModal('formModal'); };

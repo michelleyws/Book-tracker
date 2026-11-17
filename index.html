@@ -52,7 +52,7 @@
 
 <main>
   <section class="summary-card" id="summaryCard"></section>
-  <p class="list-hint" id="listHint">长按任一条目（电脑上按右键）→ 多选 → 批量删除</p>
+  <p class="list-hint" id="listHint">长按任一条目可多选<span class="hint-wide">（电脑上按右键）</span></p>
   <div id="bookList" class="book-list"></div>
 </main>
 
@@ -180,6 +180,11 @@
         <input type="text" id="grKeyInput" placeholder="jina_xxxxxxxxxxxxxxxx" autocomplete="off">
       </label>
       <p class="form-tip">必填：没有有效 Key 时接口返回 401，所有联网查询（作者/系列/系列书目）都会失败。<br>免费申请（约 1 分钟）：浏览器打开 jina.ai → 用 Google/GitHub 账号登录 → 进控制台复制 API Key → 粘贴到这里保存。填好后不开 VPN 也能查 Goodreads，免费额度每月约可查询 30-50 本书。</p>
+      <div class="settings-block">
+        <p class="form-tip">导出 Excel 时「系列」「作者」两列要有超链接，前提是记录里存了对应的 Goodreads 页面地址；旧记录一般没存，用下面的按钮补。</p>
+        <button type="button" class="btn btn-outline btn-block" id="btnBackfill">补全缺失链接（最多 20 条）</button>
+        <p class="hint-plain">只处理当前筛选出的记录，每本 1 次网络请求，所以限量。想只补某个系列，先回主界面搜索那个系列名，再进来点。</p>
+      </div>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" id="btnSettingsCancel">取消</button>
         <button type="button" class="btn btn-primary" id="btnSettingsSave">保存</button>

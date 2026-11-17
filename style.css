@@ -831,3 +831,38 @@ body.view-subs .subs-only { display: block; }
 
 /* 从订阅期次里加书时的提示条 */
 .form-tip.box { background: #e8f0ff; color: #1e56c8; }
+
+
+/* ===== 官网同步：规则行 / 官网书目 ===== */
+.bs-line {
+  font-size: 12.5px;
+  color: #1e56c8;
+  background: #eef4ff;
+  border-radius: 8px;
+  padding: 7px 9px;
+  margin-top: 7px;
+  word-break: break-word;
+  line-height: 1.55;
+}
+.bs-at { color: var(--text-2); margin-left: 6px; white-space: nowrap; }
+.bs-books { margin-top: 8px; display: flex; flex-direction: column; gap: 7px; }
+.bs-book {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  background: #f7f9ff;
+  border: 1px dashed #c8d8ff;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.bs-book .btn-small { flex: none; align-self: center; }
+.bb-cover {
+  flex: none;
+  width: 54px;
+  height: 81px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #e8ecf6;
+}
+.bb-sub { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.tag.bs { background: #e8f0ff; color: var(--primary-dark); }

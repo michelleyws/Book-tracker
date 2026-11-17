@@ -1851,6 +1851,7 @@
       (amt ? '<span class="box-amt">' + esc(amt) + '</span>' : '') +
       '<span class="box-date">' + (d ? cnDate(d) + ' 扣款' : '未设日期') + '</span></div>' +
       (trim(b.note) ? '<div class="box-note">' + esc(b.note) + '</div>' : '') +
+      bsBooksHtml(s, b) +
       '<div class="box-books">' + books + '</div>' +
       '<div class="box-actions">' +
       '<button class="btn btn-small" type="button" data-act="addbook" data-sub="' + s.id + '" data-box="' + b.id + '">＋ 加书</button>' +
@@ -1873,10 +1874,16 @@
     var meta = [s.chargeDay ? (s.cycle === 2 ? '每两月 ' : '每月 ') + s.chargeDay + ' 日扣款' : '扣款日未设置'];
     if (trim(s.amount)) meta.push(curSymbol(s.currency) + s.amount + '（≈' + money(priceVal(s.amount) * (fx[s.currency] || 1)) + '）');
     if (trim(s.site)) meta.push('<a href="' + esc(s.site) + '" target="_blank" rel="noopener">官网</a>');
+    var bsLine = '';
+    if (s.bsInfo) {
+      bsLine = '<div class="bs-line">📋 官网：' + esc(bsRulesText(s.bsInfo).slice(0, 200)) +
+        (s.bsInfo.url ? '　<a href="' + esc(s.bsInfo.url) + '" target="_blank" rel="noopener">来源页</a>' : '') +
+        (s.bsInfo.at ? '<span class="bs-at">同步于 ' + esc(s.bsInfo.at.slice(0, 10)) + '</span>' : '') + '</div>';
+    }
     var boxes = s.boxes.slice().sort(function (a, b) { return dateVal(b.chargeDate) - dateVal(a.chargeDate); });
     return '<div class="sub-card">' +
       '<div class="sub-head"><span class="sub-name">' + esc(s.name) + '</span>' + badge + '</div>' +
-      '<div class="sub-meta">' + meta.join(' · ') + (trim(s.note) ? ' · ' + esc(s.note) : '') + '</div>' +
+      '<div class="sub-meta">' + meta.join(' · ') + (trim(s.note) ? ' · ' + esc(s.note) : '') + '</div>' + bsLine +
       '<div class="sub-actions">' +
       '<button class="btn btn-small" type="button" data-act="newbox" data-sub="' + s.id + '">＋ 新建本期</button>' +
       '<button class="btn btn-small" type="button" data-act="edit" data-sub="' + s.id + '">编辑订阅</button>' +
@@ -2000,6 +2007,177 @@
     else if (act === 'reopen') setBoxStatus(s, b, 'pending');
     else if (act === 'editbox') openBoxForm(s, b);
     else if (act === 'unbind') unbindBook(s, b, el.dataset.rec);
+    else if (act === 'bs2lib') {
+      if (!s || !b) return;
+      var x = (b.bsBooks || [])[+el.dataset.i];
+      if (!x) return;
+      openFormForBox(s.id, b.id);
+      $('fTitle').value = x.bookTitle || '';
+      if (x.cover) $('formBoxTip').innerHTML += '<br>官网封面：<a href="' + esc(x.cover) + '" target="_blank" rel="noopener">查看</a>';
+      toast('书名已填好 —— 点「获取」就能自动补作者/系列/Goodreads 链接');
+    }
+  }
+
+
+  /* ============================================================
+     与 booksandspreadsheets.com 同步
+     那个站点没有 CORS 头，前端直连会被浏览器拦；用 Jina 代理又要把它 1.8MB 的页面
+     来回传几次，免费额度扛不住。所以由仓库里的 GitHub Action 每天抓一次、生成同源的
+     data/bs-subs.json，这里只读同源 JSON —— 不花额度、不跨域、快。
+     ============================================================ */
+  /* 依次尝试几个位置：Action 按 workflow 里的路径生成，放哪都能读到 */
+  var BS_PATHS = ['data/bs-subs.json', 'bs-subs.json'];
+  var bsData = null, bsFetchedAt = '';
+
+  function bsLoad() {
+    var i = 0;
+    function next() {
+      if (i >= BS_PATHS.length) return Promise.reject(new Error('找不到数据文件'));
+      var url = BS_PATHS[i++] + '?t=' + Date.now();
+      return fetch(url).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).catch(function () { return next(); });
+    }
+    return next().then(function (j) {
+      bsData = j;
+      bsFetchedAt = trim(j.generatedAt);
+      return j;
+    });
+  }
+  function bsCompany(slug) {
+    if (!bsData || !bsData.companies) return null;
+    for (var i = 0; i < bsData.companies.length; i++) {
+      if (bsData.companies[i].slug === slug) return bsData.companies[i];
+    }
+    return null;
+  }
+  function fillBsSourceSel(sel, val) {
+    if (!sel) return;
+    var opts = ['<option value="">（不同步）</option>'];
+    var list = (bsData && bsData.companies) || [];
+    list.forEach(function (c) {
+      opts.push('<option value="' + esc(c.slug) + '">' + esc(c.name) + '</option>');
+    });
+    sel.innerHTML = opts.join('');
+    sel.value = val || '';
+  }
+  /* 官网给的是自然语言规则（"5th of the month before"），只把「几号」这种无歧义的部分落库；
+     整句原文一起存下来显示，避免把有歧义的月份规则猜错、导致提醒时间不对。 */
+  function bsRulesText(c) {
+    var t = [];
+    if (trim(c.renews)) t.push('扣款：' + trim(c.renews));
+    if (trim(c.skipDeadline)) t.push('最后可 skip：' + trim(c.skipDeadline));
+    if (trim(c.cost)) t.push('费用：' + trim(c.cost));
+    if (trim(c.ships)) t.push('发货：' + trim(c.ships));
+    return t.join('　·　');
+  }
+  /* 只在「费用里只有一个金额、币种唯一」时才自动填金额。
+     官网的费用经常是分地区多币种写的（"$62 AUD (AUS); $65 AUD (NZ); $43 USD (USA)"）
+     或者分档写的（"Tier 1 - £30; Tier 2 - £25"）—— 这种一抓就抓错，
+     宁可留空让用户自己填，只在界面上把原文显示出来。 */
+  function bsFirstAmount(cost) {
+    var s = trim(cost);
+    if (!s) return null;
+    var nums = s.match(/(?:[£€$]\s?|\b(?:AUD|USD|GBP|EUR|CAD|NZD|JPY)\s?)\d+(?:\.\d+)?|\d+(?:\.\d+)?\s?(?:AUD|USD|GBP|EUR|CAD|NZD|JPY)/g) || [];
+    if (nums.length !== 1) return null;                 /* 多档 / 多地区 → 不猜 */
+    var n = (nums[0].match(/\d+(?:\.\d+)?/) || [])[0];
+    if (!n) return null;
+    var codes = (s.match(/\b(?:AUD|USD|GBP|EUR|CAD|NZD|JPY)\b/g) || []);
+    var uniq = codes.filter(function (v, i) { return codes.indexOf(v) === i; });
+    var cur = '';
+    if (uniq.length === 1) cur = uniq[0];
+    else if (uniq.length === 0) {
+      var syms = s.match(/[£€$]/g) || [];
+      var su = syms.filter(function (v, i) { return syms.indexOf(v) === i; });
+      /* 只写一个 $ 不猜（USD/AUD/CAD/NZD 都写作 $） */
+      if (su.length === 1) cur = su[0] === '£' ? 'GBP' : su[0] === '€' ? 'EUR' : '';
+    }
+    if (!cur || !fx[cur]) return null;
+    return { n: n, cur: cur };
+  }
+
+  function syncFromSite(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '同步中…'; }
+    var finish = function (ok, msg) {
+      if (btn) { btn.disabled = false; btn.textContent = '🔄 同步官网数据'; }
+      toast(msg);
+      if (ok) { renderSubs(); render(); }
+    };
+    bsLoad().then(function () {
+      if (!subs.some(function (s) { return trim(s.bsSlug); })) {
+        finish(false, '还没有订阅绑定官网页面：点「编辑订阅」，在「数据源」里选一家');
+        return;
+      }
+      var applied = 0, newBoxes = 0, miss = [];
+      subs.forEach(function (s) {
+        if (!trim(s.bsSlug)) return;
+        var c = bsCompany(s.bsSlug);
+        if (!c) { miss.push(s.name); return; }
+        applied++;
+        s.bsInfo = {
+          name: c.name, slug: c.slug, url: c.url || '', renews: c.renews,
+          skipDeadline: c.skipDeadline, cost: c.cost, ships: c.ships,
+          website: c.website, at: bsFetchedAt
+        };
+        /* 只填本地没设的，绝不覆盖用户自己改过的 */
+        if (!s.chargeDay && c.chargeDay) s.chargeDay = c.chargeDay;
+        if (!trim(s.site) && c.website) s.site = c.website;
+        if (!trim(s.amount) && trim(c.cost)) {
+          var a = bsFirstAmount(c.cost);
+          if (a && fx[a.cur]) { s.amount = a.n; s.currency = a.cur; }
+        }
+        /* 官网列出的未来期次：本地没有就建一条，并把书目/封面/设计挂上去 */
+        var today = periodOf(today0());
+        (c.boxes || []).forEach(function (b) {
+          if (!b.period || b.period < today) return;
+          var box = null, i;
+          for (i = 0; i < s.boxes.length; i++) {
+            if (s.boxes[i].period === b.period) { box = s.boxes[i]; break; }
+          }
+          if (!box) {
+            box = makeBox(s, parseYmd(b.period + '-01'));
+            box.period = b.period;
+            s.boxes.push(box);
+            newBoxes++;
+          }
+          box.bsBooks = box.bsBooks || [];
+          var dup = box.bsBooks.some(function (x) { return x.bookTitle === b.bookTitle; });
+          if (!dup) {
+            box.bsBooks.push({
+              bookTitle: b.bookTitle, cover: b.cover || '', design: b.design || [],
+              editionUrl: b.editionUrl || '', boxLabel: b.boxLabel || '', companyName: b.company || ''
+            });
+          }
+        });
+      });
+      saveSubs();
+      finish(true, '已同步 ' + applied + ' 家' + (newBoxes ? '，新建 ' + newBoxes + ' 期' : '') +
+        (miss.length ? '；' + miss.length + ' 家没在数据里' : ''));
+    }).catch(function (e) {
+      finish(false, '同步失败：读不到 data/bs-subs.json（' + e.message + '）。这个文件由仓库里的 GitHub Action 每天生成。');
+    });
+  }
+  /* 期次里的「官网书目」区块：封面 + 书名 + 设计要点 + 一键进书库补作者/系列 */
+  function bsBooksHtml(s, b) {
+    if (!b.bsBooks || !b.bsBooks.length) return '';
+    return '<div class="bs-books">' + b.bsBooks.map(function (x, i) {
+      var tags = (x.design || []).map(function (d) {
+        var p = d.split('：');
+        return '<span class="tag bs">' + esc(p[0]) + '：' + esc(p[1] || '') + '</span>';
+      }).join('');
+      return '<div class="bs-book">' +
+        (x.cover ? '<img class="bb-cover" src="' + esc(x.cover) + '" alt="" loading="lazy">' : '') +
+        '<div class="bb-main">' +
+        '<a class="bb-title" href="' + esc(x.editionUrl || s.bsInfo && s.bsInfo.url || '#') + '" target="_blank" rel="noopener">' +
+        esc(x.bookTitle) + '</a>' +
+        '<div class="bb-sub">官网数据 · ' + esc(x.boxLabel || b.period) + '</div>' +
+        (tags ? '<div class="bb-tags">' + tags + '</div>' : '') +
+        '</div>' +
+        '<button class="btn btn-small" type="button" data-act="bs2lib" data-sub="' + s.id + '" data-box="' + b.id +
+        '" data-i="' + i + '">加进书库</button>' +
+        '</div>';
+    }).join('') + '</div>';
   }
 
   /* ---- 订阅表单 ---- */
@@ -2025,6 +2203,7 @@
     fillCurSel($('sCurrency'), s ? s.currency : 'GBP');
     $('sActive').checked = s ? !!s.active : true;
     $('sNote').value = s ? s.note : '';
+    fillBsSourceSel($('sBsSlug'), s ? s.bsSlug : '');
     openModal('subModal');
   }
   function openBoxForm(s, b) {
@@ -2165,6 +2344,7 @@
   if ($('subsList')) $('subsList').addEventListener('click', subsClick);
   if ($('subsAlert')) $('subsAlert').addEventListener('click', subsClick);
   if ($('btnAddSub')) $('btnAddSub').onclick = function () { openSubForm(null); };
+  if ($('btnBsSync')) $('btnBsSync').onclick = function () { syncFromSite(this); };
   if ($('btnExportIcs')) $('btnExportIcs').onclick = exportIcs;
   if ($('btnFxOpen')) $('btnFxOpen').onclick = openFxForm;
   if ($('btnSubCancel')) $('btnSubCancel').onclick = function () { closeModal('subModal'); };
@@ -2190,7 +2370,8 @@
       name: name, site: trim($('sSite').value),
       cycle: parseInt($('sCycle').value, 10) === 2 ? 2 : 1,
       chargeDay: day, amount: trim($('sAmount').value),
-      currency: $('sCurrency').value, active: $('sActive').checked, note: trim($('sNote').value)
+      currency: $('sCurrency').value, active: $('sActive').checked, note: trim($('sNote').value),
+      bsSlug: $('sBsSlug') ? $('sBsSlug').value : (editingSub ? (editingSub.bsSlug || '') : '')
     };
     if (editingSub) Object.keys(data).forEach(function (k) { editingSub[k] = data[k]; });
     else { data.id = uid(); data.boxes = []; subs.push(data); }

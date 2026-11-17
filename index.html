@@ -68,6 +68,7 @@
       <div class="subs-alert" id="subsAlert" hidden></div>
       <div id="subsList"></div>
       <div class="subs-foot">
+        <button class="btn btn-primary btn-block" type="button" id="btnBsSync">🔄 同步官网数据</button>
         <button class="btn btn-outline btn-block" type="button" id="btnAddSub">＋ 添加订阅</button>
         <button class="btn btn-outline btn-block" type="button" id="btnExportIcs">📅 导出日历提醒（.ics）</button>
         <button class="btn btn-outline btn-block" type="button" id="btnFxOpen">💱 汇率设置（折合人民币）</button>
@@ -274,6 +275,11 @@
         <span>官网（可选）</span>
         <input type="url" id="sSite" placeholder="https://… 用来核对扣款日和爆料">
       </label>
+      <label class="field">
+        <span>数据源（booksandspreadsheets.com 上的对应页面）</span>
+        <select id="sBsSlug"></select>
+      </label>
+      <p class="hint-plain">选好之后，订阅页的「🔄 同步官网数据」就会把官网写的扣款日、最后可 skip 日、费用，以及<b>下一期出什么书（含封面和装帧设计）</b>拉过来，未来的期次自动建好。</p>
       <div class="field-pair">
         <label class="field">
           <span>扣款周期</span>

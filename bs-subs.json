@@ -1,0 +1,1372 @@
+{
+ "generatedAt": "2026-11-17T06:58:52Z",
+ "source": "https://www.booksandspreadsheets.com",
+ "note": "由 .github/workflows/sync-bs.yml 每日自动生成。数据来自 booksandspreadsheets.com；标 guessed 的书目是该站推测，仅供参考。",
+ "companies": [
+  {
+   "name": "Bewitched Pages",
+   "slug": "bewitched-pages",
+   "renews": "TBA",
+   "chargeDay": 0,
+   "chargeMonths": [],
+   "skipDeadline": "TBA",
+   "skipExample": "TBA",
+   "skipPolicy": "TBA",
+   "cost": "TBA",
+   "cycle": "TBA",
+   "ships": "TBA",
+   "shipsFrom": "UK",
+   "shipsTo": "Worldwide (many exceptions)",
+   "website": "https://www.bewitchedpages.com/",
+   "note": "First invites will go out in April 2026. Will eventually become a monthly sub.",
+   "boxes": []
+  },
+  {
+   "name": "Bookish & Spice Contemporary Romance",
+   "slug": "bookish-%26-spice-contemporary-romance",
+   "renews": "1st of the month (Jan, Mar, May, Jul, Sept, Nov)",
+   "chargeDay": 1,
+   "chargeMonths": [
+    1,
+    3,
+    5,
+    7,
+    9,
+    11
+   ],
+   "skipDeadline": "Last day of the previous month",
+   "skipExample": "Skip the May Box by April 30th",
+   "skipPolicy": "3 skips allowed per year; no skipping more than 3 boxes in a row",
+   "cost": "Bi-monthly: $62 AUD (AUS); $65 AUD (NZ); $43 USD (USA) $53 AUD + shipping (Int)",
+   "cycle": "May Box renews on May 1st",
+   "ships": "(not listed on their website)",
+   "shipsFrom": "Australia",
+   "shipsTo": "AUS, NZ, UK",
+   "website": "https://bookishandspice.com.au/",
+   "note": "Shipping is included in price for AUS, NZ, USA",
+   "boxes": [
+    {
+     "period": "2025-07",
+     "boxLabel": "July 2025 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "Easy Tiger",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_e98aa6a9d35040f0a4d0634284c9add0~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/easy-tiger-bookish-spice-contemporary-romance"
+    },
+    {
+     "period": "2025-07",
+     "boxLabel": "July 2025 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "She's a Keeper",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_7fe95922f38e464a97b1226516d364a0~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/shes-a-keeper-bookish-spice-contemporary-romance"
+    },
+    {
+     "period": "2025-09",
+     "boxLabel": "September 2025 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "Last Breath",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_1bc1f712d6b54ccb83cc3885c584101a~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/last-breath-emma-pignatiello-bookish-spice-contemporary-romance-september"
+    },
+    {
+     "period": "2025-09",
+     "boxLabel": "September 2025 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "Last Shot",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_69ae8bb540ec4a898ac06cd39e064a08~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/last-shot-emma-pignatiello-bookish-spice-contemporary-romance-september-box"
+    },
+    {
+     "period": "2025-11",
+     "boxLabel": "November 2025 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "Bridesmaid Undercover",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_ff0155579def4076a8fe1de8326a92dd~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/bridesmaid-undercover-meghan-quinn-bookish-spice-cont-romance-nov-2025"
+    },
+    {
+     "period": "2025-11",
+     "boxLabel": "November 2025 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "Bridesmaid for Hire",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_9cff576282c74e82b867637d93d5a4ef~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/bridesmaid-for-hire-meghan-quinn-bookish-spice-contemporary-romance-november-2025"
+    },
+    {
+     "period": "2026-01",
+     "boxLabel": "January 2026 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "Collide",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_386142d79cdd4d4082bc1ecfcb4b3a58~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Foiled",
+      "反向护封：Custom"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/collide-bal-khabra-bookish-and-spice"
+    },
+    {
+     "period": "2026-01",
+     "boxLabel": "January 2026 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "Spiral",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_fb41bd6ab72a41139b176d81cce41220~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Foiled",
+      "反向护封：Custom"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/spiral-bal-khabra-bookish-and-spice"
+    },
+    {
+     "period": "2026-03",
+     "boxLabel": "March 2026 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "Holding the Reins",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_a2056cee917b41a8b72edd24f2960b38~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "内页：Chapter Artwork/Designs",
+      "反向护封：Designed"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/holding-the-reins-paisley-hope-bookish-spice"
+    },
+    {
+     "period": "2026-05",
+     "boxLabel": "May 2026 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "The Last Letter",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_8881d789bcf3495d91887c319f89970f~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "内页：Chapter Artwork/Designs",
+      "反向护封：Custom"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-last-letter-rebecca-yarros-bookish-and-spice-contemporary-romance"
+    },
+    {
+     "period": "2026-07",
+     "boxLabel": "July 2026 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "The Wrong Game",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_29d100c1b9fd446ea5998cc83c6c2786~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Custom",
+      "书口：Digitally Sprayed/Printed、Connecting Edges",
+      "封面工艺：Redesigned、Exclusive",
+      "内页：Custom Interior Formatting",
+      "反向护封：Custom"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-wrong-game-kandi-steiner-bookish-and-spice"
+    },
+    {
+     "period": "2026-09",
+     "boxLabel": "September 2026 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "How to Kill a Guy in Ten Dates",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_09b67b08504b46dfa0b0c046eda8bfb6~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Illustrated",
+      "内页：Chapter Artwork/Designs、Custom Interior Formatting",
+      "反向护封：Designed"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/how-to-kill-a-guy-in-ten-dates-shailee-thompson-bookish-and-spice"
+    },
+    {
+     "period": "2026-11",
+     "boxLabel": "November 2026 Box",
+     "company": "Bookish & Spice Contemporary Romance",
+     "bookTitle": "Consider Me",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_60cc470920a5463596cb7cd8147a24ed~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Illustrated",
+      "内页：Chapter Artwork/Designs、Custom Interior Formatting",
+      "反向护封：Designed"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/consider-me-becka-mack-bookish-and-spice-contemporary-romance"
+    }
+   ]
+  },
+  {
+   "name": "Bookish & Spice Dark Romance",
+   "slug": "bookish-%26-spice-dark-romance",
+   "renews": "1st of the month (Feb, Apr, Jun, Aug, Oct, Dec)",
+   "chargeDay": 1,
+   "chargeMonths": [
+    2,
+    4,
+    6,
+    8,
+    10,
+    12
+   ],
+   "skipDeadline": "Last day of the previous month",
+   "skipExample": "Skip the June Box by May 31st",
+   "skipPolicy": "3 skips allowed per year; no skipping more than 3 boxes in a row",
+   "cost": "Bi-monthly: $65 AUD (AUS); $68 AUD (NZ); $44 USD (US); $55 AUD + shipping AUD (INT)",
+   "cycle": "June Box renews on June 1st",
+   "ships": "(not listed on their website)",
+   "shipsFrom": "Australia",
+   "shipsTo": "Worldwide",
+   "website": "https://bookishandspice.com.au/",
+   "note": "Shipping is included for AUS, NZ, US",
+   "boxes": [
+    {
+     "period": "2025-02",
+     "boxLabel": "February 2025 Box",
+     "company": "Bookish & Spice Dark Romance",
+     "bookTitle": "Hunt Me Darling",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_eb78d7f0930b4ff8bfe6287a294fda09~mv2.jpeg",
+     "design": [
+      "硬壳：Designed",
+      "环衬：Designed",
+      "书口：Sprayed",
+      "封面工艺：Redesigned、Exclusive",
+      "内页：Chapter Artwork/Designs",
+      "反向护封：Designed"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/hunt-me-darling-maree-rose-bookish-spice"
+    },
+    {
+     "period": "2025-04",
+     "boxLabel": "April 2025 Box",
+     "company": "Bookish & Spice Dark Romance",
+     "bookTitle": "Midnight Stage",
+     "featureType": "",
+     "cover": "https://static.wixstatic.com/media/88deaf_6a4f4cc9ce9443d9b7de9e14f8da2466~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/midnight-stage-sheridan-anne-bookish-spice-dark-romance-april-2025"
+    },
+    {
+     "period": "2025-06",
+     "boxLabel": "June 2025 Box",
+     "company": "Bookish & Spice Dark Romance",
+     "bookTitle": "Cirque Obscurum",
+     "featureType": "",
+     "cover": "https://static.wixstatic.com/media/88deaf_946781008d27459b9510b9e8eef1c3ac~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/cirque-obscurum-k.a.-knight-bookish-spice-dark-romance"
+    },
+    {
+     "period": "2025-08",
+     "boxLabel": "August 2025 Box",
+     "company": "Bookish & Spice Dark Romance",
+     "bookTitle": "Fiery Little Thing",
+     "featureType": "",
+     "cover": "https://static.wixstatic.com/media/88deaf_c59d52a9c20240f0955950d826de6f05~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/fiery-little-thing-avina-st.-graves-bookish-spice-dark-romance"
+    },
+    {
+     "period": "2025-10",
+     "boxLabel": "October 2025 Box",
+     "company": "Bookish & Spice Dark Romance",
+     "bookTitle": "The Bet",
+     "featureType": "",
+     "cover": "https://static.wixstatic.com/media/88deaf_1225ce81e0924840bf27a6129d963841~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-bet-j.l.-beck-bookish-spice-dark-romance-october-2025"
+    },
+    {
+     "period": "2025-12",
+     "boxLabel": "December 2025 Box",
+     "company": "Bookish & Spice Dark Romance",
+     "bookTitle": "Hitched",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_1531c6daa5644c238cbf37a266cc9339~mv2.jpeg",
+     "design": [
+      "硬壳：Designed",
+      "环衬：Designed",
+      "书口：Sprayed",
+      "封面工艺：Redesigned、Exclusive",
+      "内页：Custom Interior Formatting",
+      "反向护封：Designed"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/hitched-lauren-biel-bookish-spice-dark-romance"
+    },
+    {
+     "period": "2026-02",
+     "boxLabel": "February 2026 Box",
+     "company": "Bookish & Spice Dark Romance",
+     "bookTitle": "Twisted Game",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_a8760fabd7274a1ca326ef19af8c24a6~mv2.jpeg",
+     "design": [
+      "硬壳：Designed",
+      "环衬：Designed",
+      "书口：Sprayed",
+      "封面工艺：Redesigned、Exclusive",
+      "反向护封：Designed"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/twisted-game-eva-ashwood-bookish-spice-dark-romance"
+    },
+    {
+     "period": "2026-04",
+     "boxLabel": "April 2026 Box",
+     "company": "Bookish & Spice Dark Romance",
+     "bookTitle": "The Perfect Fit",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_6b916f2be7d6463189c8b5dfbed8b862~mv2.jpeg",
+     "design": [
+      "硬壳：Designed",
+      "环衬：Designed",
+      "书口：Sprayed",
+      "封面工艺：Redesigned、Exclusive",
+      "反向护封：Designed"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-perfect-fit-sadie-kincaid-bookish-and-spice-dark-romance"
+    },
+    {
+     "period": "2026-06",
+     "boxLabel": "June 2026 Box",
+     "company": "Bookish & Spice Dark Romance",
+     "bookTitle": "Green Light",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_bf98947c920f48d8ad00ed70fb0a2891~mv2.jpeg",
+     "design": [
+      "硬壳：Designed",
+      "环衬：Designed",
+      "书口：Sprayed",
+      "封面工艺：Redesigned、Exclusive",
+      "内页：Custom Interior Formatting",
+      "反向护封：Designed、Illustrated"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/green-light-jescie-hall-bookish-spice-dark-romance"
+    },
+    {
+     "period": "2026-08",
+     "boxLabel": "August 2026 Box",
+     "company": "Bookish & Spice Dark Romance",
+     "bookTitle": "Leave Me Behind",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_a77843264c9846e893ef63c7ce05ed3d~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Illustrated",
+      "内页：Custom Interior Formatting、Chapter Artwork/Designs",
+      "反向护封：Designed"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/leave-me-behind-km-moronova-bookish-and-spice-dark-romance"
+    },
+    {
+     "period": "2026-10",
+     "boxLabel": "October 2026 Box",
+     "company": "Bookish & Spice Dark Romance",
+     "bookTitle": "Credence",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_1eb24cd7dbe74e7f95b5a368566db9e7~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Designed",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "内页：Chapter Artwork/Designs",
+      "反向护封：Designed"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/credence-penelope-douglas-bookish-and-spice-dark-romance"
+    }
+   ]
+  },
+  {
+   "name": "Bookish & Spice Fantasy Romance",
+   "slug": "bookish-%26-spice-romantasy",
+   "renews": "1st of the month (Jan, Mar, May, Jul, Sept, Nov)",
+   "chargeDay": 1,
+   "chargeMonths": [
+    1,
+    3,
+    5,
+    7,
+    9,
+    11
+   ],
+   "skipDeadline": "Last day of the previous month",
+   "skipExample": "Skip the May Box by April 30th",
+   "skipPolicy": "3 skips allowed per year; no skipping more than 3 boxes in a row",
+   "cost": "Bi-monthly: $65 AUD (AUS); $68 AUD (NZ); $44 USD (US); $55 AUD + shipping AUD (INT)",
+   "cycle": "May Box renews on May 1st",
+   "ships": "(not listed on their website)",
+   "shipsFrom": "Australia",
+   "shipsTo": "Worldwide",
+   "website": "https://bookishandspice.com.au/",
+   "note": "Shipping is included for AUS, NZ, US",
+   "boxes": [
+    {
+     "period": "2024-11",
+     "boxLabel": "November 2024 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "The Assassin Thief",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_8644794fe3b0464da50b9f5be160b801~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Artwork、Different Front & Back",
+      "书口：Custom、2 Options",
+      "封面工艺：Redesigned、Exclusive、Illustrated",
+      "内页：Custom Interior Formatting",
+      "反向护封：Custom"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-assassin-thief-madeline-te-whiu-bookish-and-spice"
+    },
+    {
+     "period": "2025-03",
+     "boxLabel": "March 2025 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "Serpents of Sky and Flame",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_282f79c530b94904ac9e2a11ff11ed5b~mv2.jpeg",
+     "design": [
+      "硬壳：Designed",
+      "环衬：Illustrated",
+      "书口：Designed",
+      "封面工艺：Redesigned、Exclusive",
+      "内页：Custom Interior Formatting、Chapter Artwork/Designs",
+      "反向护封：Designed"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/serpents-of-sky-and-flame-bookish-spice"
+    },
+    {
+     "period": "2025-05",
+     "boxLabel": "May 2025 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "The Stars Are Dying",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_d4738f10222b42f9be4f84ce60da7634~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-stars-are-dying-chloe-c-penaranda-bookish-spice-fantasy-romance"
+    },
+    {
+     "period": "2025-07",
+     "boxLabel": "July 2025 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "Slaying the Shifter Prince",
+     "featureType": "",
+     "cover": "https://static.wixstatic.com/media/88deaf_9000b2439d064c85ac54f02eab4210b7~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/slaying-the-shifter-prince-clare-sager-bookish-spice-fantasy-romance"
+    },
+    {
+     "period": "2025-09",
+     "boxLabel": "September 2025 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "Curse of Shadows and Thorns",
+     "featureType": "",
+     "cover": "https://static.wixstatic.com/media/88deaf_326299fee86248ebb5a5536156fad439~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/curse-of-shadows-and-thorns-l.j.-andrews-bookish-spice-fantasy-romance-september-2025"
+    },
+    {
+     "period": "2025-11",
+     "boxLabel": "November 2025 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "The Anatomy of Songs",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_44c9b46d885a40cd95f7a0a7b253c5ba~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Foiled",
+      "反向护封：Custom"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-anatomy-of-songs-megan-white-bookish-spice-fantasy-romance-november-2025"
+    },
+    {
+     "period": "2026-01",
+     "boxLabel": "January 2026 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "Spark of the Everflame",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_b98b1e94a091486592f5324df33793eb~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Foiled",
+      "反向护封：Custom"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/spark-of-the-everflame-penn-cole-bookish-and-spice"
+    },
+    {
+     "period": "2026-03",
+     "boxLabel": "March 2026 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "How Does It Feel?",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_962cc5185bb747a4aa1b36807789a4f4~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Designed",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Foiled",
+      "内页：Custom Interior Formatting、Chapter Artwork/Designs",
+      "反向护封：Custom"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/how-does-it-feel-jeneane-oriley-bookish-and-spice-fantasy-romance"
+    },
+    {
+     "period": "2026-05",
+     "boxLabel": "May 2026 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "Flame and Sprarrow",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_a4a166d36829471c8c19922b9b3cd235~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Designed",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Foiled",
+      "反向护封：Custom"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/flame-and-sparrow-sm-gaither-bookish-and-spice-fantasy-romance"
+    },
+    {
+     "period": "2026-07",
+     "boxLabel": "July 2026 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "Court of Blood and Bindings",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_99ca50405f374892b82e7cd2effe96da~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Designed",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Foiled",
+      "内页：Custom Interior Formatting、Chapter Artwork/Designs",
+      "反向护封：Custom"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/court-of-blood-and-bindings-lisette-marshall-bookish-and-spice"
+    },
+    {
+     "period": "2026-09",
+     "boxLabel": "September 2026 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "A Fate Inked in Blood",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_311b729a1782424f9ca1f2c511688f06~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "反向护封：Designed"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/a-fate-inked-in-blood-danielle-l-jensen-bookish-and-spice"
+    },
+    {
+     "period": "2026-11",
+     "boxLabel": "November 2026 Box",
+     "company": "Bookish & Spice Fantasy Romance",
+     "bookTitle": "Fairydale",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_8a74369571b043559e449473dd1d6538~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Designed",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "内页：Custom Interior Formatting、Chapter Artwork/Designs",
+      "反向护封：Custom、Illustrated"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/fairydale-veronica-lancet-bookish-and-spice-fantasy-romance"
+    }
+   ]
+  },
+  {
+   "name": "The Broken Binding Fantasy",
+   "slug": "broken-binding-fantasy",
+   "renews": "1st of the month before",
+   "chargeDay": 1,
+   "chargeMonths": [],
+   "skipDeadline": "Last day of the month before renewal",
+   "skipExample": "Email to to skip May Box by March 31st",
+   "skipPolicy": "1 skip per year (Skip the whole series)",
+   "cost": "Tier 1 - £30; Tier 2 - £25 + shipping per month",
+   "cycle": "May Box renews April 1st and ships by the end of May",
+   "ships": "By the end of the month",
+   "shipsFrom": "UK",
+   "shipsTo": "Worldwide",
+   "website": "https://thebrokenbindingsub.com/",
+   "note": "Two Tiers of Subscription - Tier 1 is signed & numbered and gets 1st access to sales. Tier 2 is not signed & numbered and gets second access to sales.",
+   "boxes": [
+    {
+     "period": "2025-05",
+     "boxLabel": "May 2025 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Magician",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_ff038e475ed547418fd1931fd772a293~mv2.png",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/magician-the-riftwar-saga-broken-binding-fantasy-may-2025"
+    },
+    {
+     "period": "2025-06",
+     "boxLabel": "June 2025 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Silverthorn",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_2dd90169623942d38790d5296d81a191~mv2.png",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/silverthorn-the-riftwar-saga-broken-binding-fantasy-june-2025"
+    },
+    {
+     "period": "2025-07",
+     "boxLabel": "July 2025 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "A Darkness at Sethanon",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_d7da88e377824bd5b03d504537b37ab8~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/a-darkness-at-sethanon-the-riftwar-saga-broken-binding-fantasy-july-2025"
+    },
+    {
+     "period": "2025-08",
+     "boxLabel": "August 2025 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Black Sun",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_931c4287dbe44d5fb0663b5043fab388~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/black-sun-rebecca-roanhorse-the-broken-binding-fantasy"
+    },
+    {
+     "period": "2025-09",
+     "boxLabel": "September 2025 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Fevered Star",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_2bcef299a66b408bbe1eab9d31658c63~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/fevered-star-rebecca-roanhorse-the-broken-binding-fantasy"
+    },
+    {
+     "period": "2025-10",
+     "boxLabel": "October 2025 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Mirrored Heavens",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_845283bbc1c24bcab4e0f0013fc34c8a~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/mirrored-heavens-rebecca-roanhorse-the-broken-binding-fantasy"
+    },
+    {
+     "period": "2025-11",
+     "boxLabel": "November 2025 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Kings of the Wyld",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_8fa4df23f61f4cfa8b7be200c3ba1867~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/kings-of-the-wyld-nicholas-eames-the-broken-binding-fantasy-november-2025"
+    },
+    {
+     "period": "2025-12",
+     "boxLabel": "December 2025 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Bloody Rose",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_e76e626b4d38472a903cf5cf487e825a~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/bloody-rose-nicholas-eames-the-broken-binding-fantasy-december-2025"
+    },
+    {
+     "period": "2026-01",
+     "boxLabel": "January 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "The Bone Shard Daughter",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_f003837c9d6f4defb1440611e9358ba1~mv2.jpeg",
+     "design": [
+      "硬壳：Illustrated",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-bone-shard-daughter-andrea-stewart-the-broken-binding-fantasy"
+    },
+    {
+     "period": "2026-02",
+     "boxLabel": "February 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "The Bone Shard Emperor",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_75db471c5830405ba73f7d08c05ddf9e~mv2.jpeg",
+     "design": [
+      "硬壳：Illustrated",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-bone-shard-emperor-andrea-stewart-broken-binding-fantasy"
+    },
+    {
+     "period": "2026-03",
+     "boxLabel": "March 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "The Bone Shard War",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_719615d669b94ca2a2985b4a61ee708c~mv2.jpeg",
+     "design": [
+      "硬壳：Illustrated",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-bone-shard-war-andrea-stewart-broken-binding-fantasy"
+    },
+    {
+     "period": "2026-04",
+     "boxLabel": "April 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Malice",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_2614409029834a17b71b4c5dcbb63913~mv2.jpeg",
+     "design": [
+      "硬壳：Illustrated",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed Fore-Edge、Connecting Edges、Solid-Sprayed Top & Bottom Edge",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "反向护封：Second Dust Jacket of Standard Cover",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Ribbon Bookmark、Acid-Free Paper、Sewn Binding"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/malice-john-gwynne-broken-binding-fantasy"
+    },
+    {
+     "period": "2026-05",
+     "boxLabel": "May 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Valour",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_229840b6f8a44a12ab95a93b227fc96f~mv2.jpeg",
+     "design": [
+      "硬壳：Illustrated",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed Fore-Edge、Connecting Edges、Solid-Sprayed Top & Bottom Edge",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "反向护封：Second Dust Jacket of Standard Cover",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Ribbon Bookmark、Acid-Free Paper、Sewn Binding"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/valour-john-gwynne-the-faithful-and-the-fallen-broken-binding-fantasy"
+    },
+    {
+     "period": "2026-06",
+     "boxLabel": "June 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Ruin",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_cde884b45cd7402681522fe08138316f~mv2.jpeg",
+     "design": [
+      "硬壳：Illustrated",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed Fore-Edge、Connecting Edges、Solid-Sprayed Top & Bottom Edge",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "反向护封：Second Dust Jacket of Standard Cover",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Ribbon Bookmark、Acid-Free Paper、Sewn Binding"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/ruin-john-gwynne-the-broken-binding-fantasy"
+    },
+    {
+     "period": "2026-07",
+     "boxLabel": "July 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Wrath",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_cde884b45cd7402681522fe08138316f~mv2.jpeg",
+     "design": [
+      "硬壳：Illustrated",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed Fore-Edge、Connecting Edges、Solid-Sprayed Top & Bottom Edge",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "反向护封：Second Dust Jacket of Standard Cover",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Ribbon Bookmark、Acid-Free Paper、Sewn Binding"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/wrath-john-gwynne-the-broken-binding"
+    },
+    {
+     "period": "2026-08",
+     "boxLabel": "August 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Jonathan Strange & Mr. Norrell",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_b17868f980ad400cb770a28abff752b2~mv2.jpeg",
+     "design": [
+      "硬壳：Illustrated",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "加赠内容：Bonus Introduction",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Sewn Binding、Acid-Free Paper"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/jonathan-strange-mr.-norrell-susanna-clarke-the-broken-binding"
+    },
+    {
+     "period": "2026-09",
+     "boxLabel": "September 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Piranesi",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_99bf120f4aa1465cae613995e73893e2~mv2.jpeg",
+     "design": [
+      "硬壳：Illustrated",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Sewn Binding、Acid-Free Paper"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/piranesi-susanna-clarke-the-broken-binding-fantasy"
+    },
+    {
+     "period": "2026-10",
+     "boxLabel": "October 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Theft of Swords",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_f131a32117da4617921b8e336c06f012~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature (Tier 1 Only)",
+      "其他：Black & White Interior Illustrations、Numbered (Tier 1 Only)、Head & Tail Bands"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/theft-of-swords-michael-j-sullivan-broken-binding-fantasy"
+    },
+    {
+     "period": "2026-11",
+     "boxLabel": "November 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Rise of Empire",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_1b4133763baf48efb38debb9ece9b123~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature (Tier 1 Only)",
+      "其他：Black & White Interior Illustrations、Numbered (Tier 1 Only)、Head & Tail Bands"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/rise-of-empire-michael-j-sullivan-broken-binding-fantasy"
+    },
+    {
+     "period": "2026-12",
+     "boxLabel": "December 2026 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Heir of Novron",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_023316e47dbd438893b111a37e401d2f~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature (Tier 1 Only)",
+      "其他：Black & White Interior Illustrations、Numbered (Tier 1 Only)、Head & Tail Bands"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/heir-of-novron-michael-j-sullivan-broken-binding-fantasy"
+    }
+   ]
+  },
+  {
+   "name": "The Broken Binding Sci-Fi",
+   "slug": "broken-binding-sci-fi",
+   "renews": "3rd of the month before (Jan, Mar, May, July, Sept, Nov)",
+   "chargeDay": 3,
+   "chargeMonths": [
+    1,
+    3,
+    5,
+    7,
+    9,
+    11
+   ],
+   "skipDeadline": "2nd of the month before",
+   "skipExample": "Email to to skip June Box by May 2nd",
+   "skipPolicy": "1 skip per year (Skip the whole series)",
+   "cost": "£25 + shipping bi-monthly",
+   "cycle": "June Box renews May 3rd and ships by the end of June",
+   "ships": "By the end of the month",
+   "shipsFrom": "UK",
+   "shipsTo": "Worldwide",
+   "website": "https://thebrokenbindingsub.com/",
+   "note": "",
+   "boxes": [
+    {
+     "period": "2024-04",
+     "boxLabel": "April 2024 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "The Martian",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_ba16545dadd24d6e9210ba5979f254a0~mv2.png",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/broken-binding-the-martian"
+    },
+    {
+     "period": "2024-06",
+     "boxLabel": "June 2024 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "Artemis",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_c8a6cbb4932740aba9788d4e56fcb4c6~mv2.png",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/artemis-broken-binding"
+    },
+    {
+     "period": "2024-08",
+     "boxLabel": "August 2024 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "Project Hail Mary",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_a049b37bd39844a89d0f036e588d2a69~mv2.png",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/project-hail-mary-broken-binding"
+    },
+    {
+     "period": "2025-04",
+     "boxLabel": "April 2025 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "Doomsday Book",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_b0a70d3dbe2e4fa2a3a7eb6324cc2eb1~mv2.png",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/doomsday-book-broken-binding-sci-fi-april-2025"
+    },
+    {
+     "period": "2025-06",
+     "boxLabel": "June 2025 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "The Left Hand of Darkness",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_9ed104aabd5745af90ea01ff50092e8a~mv2.png",
+     "design": [
+      "硬壳：Foiled",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Illustrated"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-left-hand-of-darkness-ursula-k.-le-guin-the-broken-binding-sci-fi"
+    },
+    {
+     "period": "2025-08",
+     "boxLabel": "August 2025 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "The Sparrow",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_61fec4f642034920b5b4437e03e5ee72~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-sparrow-mary-doria-russell-the-broken-binding-sci-fi"
+    },
+    {
+     "period": "2025-10",
+     "boxLabel": "October 2025 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "Children of God",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_1bee9d01c3394ffba2a4712f9c591488~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/children-of-god-mary-doria-russell-the-broken-binding-sci-fi"
+    },
+    {
+     "period": "2025-12",
+     "boxLabel": "December 2025 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "The Vanished Birds",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_499eadbc80ce4fb6b372b5dd689bd0ae~mv2.jpeg",
+     "design": [],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-vanished-birds-simon-jimenez-broken-binding-sci-fi-dec-2025"
+    },
+    {
+     "period": "2026-02",
+     "boxLabel": "February 2026 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "Wool",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_bbaa8ad3af6746ecbc0dbccd98b7ffba~mv2.png",
+     "design": [
+      "硬壳：PLC Boards",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature",
+      "其他：Head & Tail Bands、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/wool-hugh-howey-silo-the-broken-binding"
+    },
+    {
+     "period": "2026-04",
+     "boxLabel": "April 2026 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "Shift",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_0f1bc8c67585412b8b7153ea73fb9a1b~mv2.jpeg",
+     "design": [
+      "硬壳：PLC Boards",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature",
+      "其他：Head & Tail Bands、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/shift-hugh-howey-the-broken-binding"
+    },
+    {
+     "period": "2026-06",
+     "boxLabel": "June 2026 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "Dust",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_bfba10a33f7c4b0aa59a2010fcd9959b~mv2.jpeg",
+     "design": [
+      "硬壳：PLC Boards",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature",
+      "其他：Head & Tail Bands、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/dust-hugh-howey-the-broken-binding"
+    },
+    {
+     "period": "2026-08",
+     "boxLabel": "August 2026 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "Velocity Weapon",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_52f9961e5fab4b749592a3a305cfd6ef~mv2.jpeg",
+     "design": [
+      "硬壳：PLC Boards",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature",
+      "其他：Head & Tail Bands"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/velocity-weapon-megan-e-okeefe-the-broken-binding-sci-fi"
+    },
+    {
+     "period": "2026-10",
+     "boxLabel": "October 2026 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "Chaos Vector",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_b6d9794366614d2ebf3cd21199017470~mv2.jpeg",
+     "design": [
+      "硬壳：PLC Boards",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature",
+      "其他：Head & Tail Bands"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/chaos-vector-megan-e-okeefe-the-broken-binding-the-protectorate"
+    },
+    {
+     "period": "2026-12",
+     "boxLabel": "December 2026 Box",
+     "company": "The Broken Binding Sci-Fi",
+     "bookTitle": "Catalyst Gate",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_230c75e0c0e64875a329bc335284755a~mv2.jpeg",
+     "design": [
+      "硬壳：PLC Boards",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature",
+      "其他：Head & Tail Bands"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/catalyst-gate-megan-e-okeefe-the-broken-binding-sci-fi"
+    }
+   ]
+  },
+  {
+   "name": "The Broken Binding Sci-Fi & Fantasy",
+   "slug": "broken-binding-sci-fi-%26-fantasy",
+   "renews": "5th of the month before (Feb, Apr, June, Aug, Oct, Dec)",
+   "chargeDay": 5,
+   "chargeMonths": [
+    2,
+    4,
+    6,
+    8,
+    10,
+    12
+   ],
+   "skipDeadline": "4th of the month before",
+   "skipExample": "Email to skip May Box by 4th of April",
+   "skipPolicy": "3 skips allowed per year",
+   "cost": "£25 + shipping bi-monthly",
+   "cycle": "May Box renews April 5th and ships by the end of May",
+   "ships": "By the end of the month",
+   "shipsFrom": "UK",
+   "shipsTo": "Worldwide",
+   "website": "https://thebrokenbindingsub.com/",
+   "note": "This box will be turning into a monthly box sometime in 2026. 9 skips will be allowed when this happens.",
+   "boxes": [
+    {
+     "period": "2025-09",
+     "boxLabel": "September 2025 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "Crossroads of Ravens",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_8cc6365bf757486583d19975effd7572~mv2.png",
+     "design": [
+      "硬壳：Foiled",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "其他：Head & Tail Bands、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/crossroads-of-ravens-andrzej-sapkowski-the-broken-binding-sci-fi-fantasy-september-2025"
+    },
+    {
+     "period": "2025-11",
+     "boxLabel": "November 2025 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "All That We See or Seem",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_bf18bd4c5591433ead592223e74ca8e0~mv2.png",
+     "design": [
+      "硬壳：Foiled",
+      "环衬：Illustrated",
+      "书口：Foiled",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "签名：Physical Signature"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/all-that-we-see-or-seem-ken-liu-broken-binding-sf-f"
+    },
+    {
+     "period": "2026-01",
+     "boxLabel": "January 2026 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "Operation Bounce House",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_4b3e44d0025442c684419eaf5464ec10~mv2.png",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "签名：Physical Signature",
+      "其他：Head & Tail Bands"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/operation-bounce-house-matt-dinniman-broken-binding-sff"
+    },
+    {
+     "period": "2026-03",
+     "boxLabel": "March 2026 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "Green & Deadly Things",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_d1b5de3cc14947e4b89fd0859f3dc32b~mv2.jpeg",
+     "design": [
+      "硬壳：Foiled",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed Fore-Edge、Solid-Sprayed Top & Bottom Edge",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "签名：Physical Signature",
+      "其他：Head & Tail Bands、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/green-deadly-things-jenn-lyons-the-broken-binding"
+    },
+    {
+     "period": "2026-04",
+     "boxLabel": "April 2026 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "Daughter of Crows",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_b8de60b17ad4418abaae885c90c9c802~mv2.jpeg",
+     "design": [
+      "硬壳：Foiled",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "签名：Physical Signature",
+      "反向护封：Alternate Colorway of Standard Cover",
+      "其他：Head & Tail Bands"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/daughter-of-crows-mark-lawrence-broken-binding-sff"
+    },
+    {
+     "period": "2026-05",
+     "boxLabel": "May 2026 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "The Girl with a Thousand Faces",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_e6968d780a2b47ed893caa5694328dd6~mv2.jpeg",
+     "design": [
+      "硬壳：Foiled",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "签名：Physical Signature",
+      "反向护封：Alternate Colorway of Standard Cover",
+      "其他：Head & Tail Bands、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-girl-with-a-thousand-faces-sunyi-dean-the-broken-binding"
+    },
+    {
+     "period": "2026-06",
+     "boxLabel": "June 2026 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "The Heart of the Nhaga",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_4026850d9b1744409ede5138db8bc26e~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed Fore-Edge、Solid-Sprayed Top & Bottom Edge",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "签名：Physical Signature",
+      "反向护封：Alternate Colorway of Standard Cover",
+      "其他：Head & Tail Bands、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-heart-of-the-nhaga-lee-young-do-the-broken-binding-sff"
+    },
+    {
+     "period": "2026-07",
+     "boxLabel": "July 2026 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "The Demon Star",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_7525d5a4efd949bb9893d3879e61fcaa~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "签名：Physical Signature",
+      "其他：Head & Tail Bands、Ribbon Bookmark、Sewn Binding、Acid-Free Paper"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-demon-star-jesse-aragon-the-broken-binding-sff"
+    },
+    {
+     "period": "2026-08",
+     "boxLabel": "August 2026 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "The Infinite State",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_f52a30340e0e47debbeb5a7b92178073~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "签名：Physical Signature",
+      "其他：Head & Tail Bands、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-infinite-state-richard-swan-the-broken-binding-sff"
+    },
+    {
+     "period": "2026-10",
+     "boxLabel": "October 2026 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "Deathless King",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_4318832f263445b4b5c553a9be5d0ec4~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed Fore-Edge、Solid-Sprayed Top & Bottom Edge",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "签名：Physical Signature",
+      "反向护封：Alternate Version of Standard Cover",
+      "其他：Ribbon Bookmark、Head & Tail Bands"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/deathless-king-ra-castellan-the-broken-binding-sff"
+    },
+    {
+     "period": "2026-11",
+     "boxLabel": "November 2026 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "The Wolves of War",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_3e1b61838913440a80f9b0f88d0cd7e1~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "签名：Physical Signature",
+      "反向护封：Artwork",
+      "其他：Ribbon Bookmark、Head & Tail Bands"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-wolves-of-war-john-gwynne-the-broken-binding-sff"
+    },
+    {
+     "period": "2026-12",
+     "boxLabel": "December 2026 Box",
+     "company": "The Broken Binding Sci-Fi & Fantasy",
+     "bookTitle": "An Edge Sharp Enough",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_df5c7749503d48e2832886d1a953cb3d~mv2.jpeg",
+     "design": [
+      "硬壳：Foiled",
+      "环衬：Illustrated",
+      "书口：Digitally Sprayed/Printed Fore-Edge、Solid-Sprayed Top & Bottom Edge",
+      "封面工艺：Redesigned、Exclusive、Artwork",
+      "签名：Physical Signature",
+      "反向护封：Alternate Version of Standard Cover",
+      "其他：Ribbon Bookmark、Head & Tail Bands"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/an-edge-sharp-enough-jesse-q-sutanto-broken-binding-sff"
+    }
+   ]
+  }
+ ],
+ "errors": []
+}

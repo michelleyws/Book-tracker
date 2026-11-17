@@ -1706,14 +1706,31 @@
      ============================================================ */
   var SUBS_PRESET = ['The Broken Binding', 'Bookish and Spice', 'Eldritch King'];
 
+  /* 订阅名 → booksandspreadsheets.com 上的公司页。
+     没手动选「数据源」的订阅，同步时按名字自动匹配这里（匹配到就落库，下次直接用）。
+     —— The Broken Binding 实际订的是 SF&F；Fantasy / Sci-Fi 在 waitlist 上，先不绑。
+     —— Bookish & Spice 订的是 Contemporary Romance。
+     —— Eldritch King 那个站还没收录，留空，手动维护。 */
+  var BS_DEFAULT = [
+    { re: /broken\s*binding/i, slug: 'broken-binding-sci-fi-%26-fantasy' },
+    { re: /bookish\s*[&＆]?\s*(?:and\s+)?spice/i, slug: 'bookish-%26-spice-contemporary-romance' },
+    { re: /eldritch/i, slug: '' }
+  ];
+  function bsDefaultFor(name) {
+    var n = trim(name);
+    for (var i = 0; i < BS_DEFAULT.length; i++) if (BS_DEFAULT[i].re.test(n)) return BS_DEFAULT[i].slug;
+    return '';
+  }
+
   function loadSubs() {
     var arr = null;
     try { var raw = localStorage.getItem(LS_SUBS); arr = raw ? JSON.parse(raw) : null; } catch (e) { arr = null; }
     if (!Array.isArray(arr)) {
       arr = SUBS_PRESET.map(function (n) {
-        /* 只预置名字：各家扣款日不一致（要看官网），币种也按各家实际选，先留空由用户填 */
+        /* 只预置名字和已知的数据源；扣款日/金额等官网说了算，同步时再填 */
         return { id: uid(), name: n, site: '', cycle: 1, chargeDay: 0, amount: '',
-                 currency: 'GBP', active: true, note: '', boxes: [] };
+                 currency: 'GBP', active: true, note: '', boxes: [],
+                 bsSlug: bsDefaultFor(n) };
       });
     }
     arr.forEach(function (s) {
@@ -1855,6 +1872,8 @@
       '<div class="box-books">' + books + '</div>' +
       '<div class="box-actions">' +
       '<button class="btn btn-small" type="button" data-act="addbook" data-sub="' + s.id + '" data-box="' + b.id + '">＋ 加书</button>' +
+      ((b.bsBooks && b.bsBooks.length) || (b.books && b.books.length)
+        ? '<button class="btn btn-small" type="button" data-act="2lib" data-sub="' + s.id + '" data-box="' + b.id + '">📚 同步到书库</button>' : '') +
       (b.status === 'pending'
         ? '<button class="btn btn-small" type="button" data-act="charged" data-sub="' + s.id + '" data-box="' + b.id + '">标记已扣款</button>' +
           '<button class="btn btn-small" type="button" data-act="skipped" data-sub="' + s.id + '" data-box="' + b.id + '">跳过这期</button>'
@@ -1954,13 +1973,55 @@
     if ($('dueGo')) $('dueGo').onclick = function () { setView('subs'); };
   }
 
+  /* ---- 期次 → 书库 ----
+     订阅扣款完成后，把这一期官网登记的书同步进书库，状态记「买了 · 没到手」。
+     书库里已有同名的就不重复加。 */
+  function boxLibraryRecord(s, b, x) {
+    var design = (x.design && x.design.length) ? '装帧：' + x.design.join('；') + '　' : '';
+    return {
+      id: uid(),
+      title: trim(x.bookTitle || x.title),
+      author: trim(x.author),
+      series: trim(x.series),
+      owned: '没到手',
+      binding: /hardcover/i.test(trim(x.featureType)) ? '精装' : '',
+      date: fromInputDate(toInputDate(b.chargeDate)),
+      source: s.name,
+      sourceUrl: '',
+      price: trim(b.amount) || trim(s.amount),
+      currency: b.currency || s.currency || 'CNY',
+      publisher: '',
+      note: design + (x.editionUrl ? '官网：' + x.editionUrl : ''),
+      goodreadsUrl: '', grBookUrl: '', grAuthorUrl: '', grSeriesUrl: ''
+    };
+  }
+  function pushBoxToLibrary(s, b) {
+    if (!s || !b) return 0;
+    var list = (b.bsBooks && b.bsBooks.length) ? b.bsBooks : (b.books || []);
+    if (!list.length) return 0;
+    var added = 0;
+    list.forEach(function (x) {
+      var title = trim(x.bookTitle || x.title);
+      if (!title) return;
+      var nk = bookKey(title), i;
+      for (i = 0; i < records.length; i++) if (bookKey(records[i].title) === nk) return;
+      records.push(boxLibraryRecord(s, b, x));
+      added++;
+    });
+    if (added) { save(); render(); }
+    return added;
+  }
+
   /* ---- 操作 ---- */
   function setBoxStatus(s, b, st) {
     if (!s || !b) return;
     if (st === 'charged' && !trim(b.amount) && trim(s.amount)) b.amount = trim(s.amount);
     b.status = st;
+    var added = st === 'charged' ? pushBoxToLibrary(s, b) : 0;   /* 扣款完成 → 这一期的书进书库 */
     saveSubs(); renderSubs(); render();
-    toast(s.name + ' ' + periodLabel(b.period) + '：' + (st === 'charged' ? '已记扣款' : st === 'skipped' ? '已跳过' : '改回待扣款'));
+    toast(s.name + ' ' + periodLabel(b.period) + '：' +
+      (st === 'charged' ? '已记扣款' + (added ? '，' + added + ' 本书已进书库（买了 · 没到手）' : '')
+        : st === 'skipped' ? '已跳过' : '改回待扣款'));
   }
   function unbindBook(s, b, recId) {
     if (!s || !b) return;
@@ -2007,6 +2068,11 @@
     else if (act === 'reopen') setBoxStatus(s, b, 'pending');
     else if (act === 'editbox') openBoxForm(s, b);
     else if (act === 'unbind') unbindBook(s, b, el.dataset.rec);
+    else if (act === '2lib') {
+      var n = pushBoxToLibrary(s, b);
+      renderSubs();
+      toast(n ? '已把 ' + n + ' 本书加进书库（状态：买了 · 没到手）' : '这一期的书书库里都已经有了');
+    }
     else if (act === 'bs2lib') {
       if (!s || !b) return;
       var x = (b.bsBooks || [])[+el.dataset.i];
@@ -2052,7 +2118,7 @@
     }
     return null;
   }
-  function fillBsSourceSel(sel, val) {
+  function fillBsSourceSel(sel, val, name) {
     if (!sel) return;
     var opts = ['<option value="">（不同步）</option>'];
     var list = (bsData && bsData.companies) || [];
@@ -2060,7 +2126,7 @@
       opts.push('<option value="' + esc(c.slug) + '">' + esc(c.name) + '</option>');
     });
     sel.innerHTML = opts.join('');
-    sel.value = val || '';
+    sel.value = val || bsDefaultFor(name) || '';
   }
   /* 官网给的是自然语言规则（"5th of the month before"），只把「几号」这种无歧义的部分落库；
      整句原文一起存下来显示，避免把有歧义的月份规则猜错、导致提醒时间不对。 */
@@ -2105,12 +2171,16 @@
       if (ok) { renderSubs(); render(); }
     };
     bsLoad().then(function () {
-      if (!subs.some(function (s) { return trim(s.bsSlug); })) {
+      if (!subs.some(function (s) { return trim(s.bsSlug) || bsDefaultFor(s.name); })) {
         finish(false, '还没有订阅绑定官网页面：点「编辑订阅」，在「数据源」里选一家');
         return;
       }
       var applied = 0, newBoxes = 0, miss = [];
       subs.forEach(function (s) {
+        if (!trim(s.bsSlug)) {
+          var auto = bsDefaultFor(s.name);
+          if (auto) s.bsSlug = auto;            /* 按名字自动绑定，下次直接用 */
+        }
         if (!trim(s.bsSlug)) return;
         var c = bsCompany(s.bsSlug);
         if (!c) { miss.push(s.name); return; }
@@ -2203,7 +2273,7 @@
     fillCurSel($('sCurrency'), s ? s.currency : 'GBP');
     $('sActive').checked = s ? !!s.active : true;
     $('sNote').value = s ? s.note : '';
-    fillBsSourceSel($('sBsSlug'), s ? s.bsSlug : '');
+    fillBsSourceSel($('sBsSlug'), s ? s.bsSlug : '', s ? s.name : '');
     openModal('subModal');
   }
   function openBoxForm(s, b) {

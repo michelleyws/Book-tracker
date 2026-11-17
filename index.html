@@ -27,12 +27,14 @@
   <div class="tab-row" id="tabRow">
     <button class="tab active" data-view="books" type="button">📚 书库</button>
     <button class="tab" data-view="subs" type="button">📦 订阅盒子</button>
+    <button class="tab" data-view="read" type="button">📖 阅读记录</button>
   </div>
   <div class="filter-row books-only" id="filterRow">
     <button class="chip active" data-filter="all" type="button">全部</button>
     <button class="chip" data-filter="yes" type="button">已到手</button>
     <button class="chip" data-filter="pending" type="button">没到手</button>
     <button class="chip" data-filter="no" type="button">未入手</button>
+    <select id="genreFilter" class="filter-select"><option value="">全部类型</option></select>
     <select id="sortSelect" class="sort-select">
       <option value="date-desc">日期 新→旧</option>
       <option value="date-asc">日期 旧→新</option>
@@ -60,6 +62,13 @@
     <section class="summary-card" id="summaryCard"></section>
     <p class="list-hint" id="listHint">长按任一条目可多选<span class="hint-wide">（电脑上按右键）</span></p>
     <div id="bookList" class="book-list"></div>
+  </div>
+
+  <div class="read-only" id="viewRead">
+    <div class="subs-wrap">
+      <section class="summary-card" id="readTop"></section>
+      <div class="read-list" id="readList"></div>
+    </div>
   </div>
 
   <div class="subs-only" id="viewSubs">
@@ -121,6 +130,17 @@
         </label>
         <div class="field-pair">
           <label class="field">
+            <span>类型（可下拉选，也可自己填）</span>
+            <input type="text" id="fGenre" list="genreList" autocomplete="off" placeholder="Fantasy / Romance…">
+            <datalist id="genreList"></datalist>
+          </label>
+          <label class="field">
+            <span>ISBN（可选）</span>
+            <input type="text" id="fIsbn" inputmode="numeric" placeholder="导入匹配更准">
+          </label>
+        </div>
+        <div class="field-pair">
+          <label class="field">
             <span>状态</span>
             <select id="fOwned">
               <option value="是">已到手</option>
@@ -138,6 +158,27 @@
             </select>
           </label>
         </div>
+        <div class="field-pair">
+          <label class="field">
+            <span>阅读状态</span>
+            <select id="fReadStatus">
+              <option>未阅读</option>
+              <option>在读</option>
+              <option>已读</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>评分（1–5，可留空）</span>
+            <select id="fRating">
+              <option value="">未评分</option>
+              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+            </select>
+          </label>
+        </div>
+        <label class="field">
+          <span>读完日期（可选，填了会按这个排序阅读记录）</span>
+          <input type="date" id="fFinish">
+        </label>
         <div class="field-pair pair-date">
           <label class="field">
             <span>购入日期</span>
@@ -186,6 +227,29 @@
         <input type="hidden" id="fGrSeriesUrlH">
         <input type="hidden" id="fBoxRef">
         <p class="form-tip box" id="formBoxTip" hidden></p>
+        <div class="field">
+          <span>封面（可选 · 存在本机，不占书库空间）</span>
+          <div class="cover-tools">
+            <button type="button" class="btn btn-small" id="btnCoverPick">选图片 / 拍照</button>
+            <button type="button" class="btn btn-small btn-outline" id="btnCoverDel">删除封面</button>
+            <span class="cover-size" id="coverSize"></span>
+          </div>
+          <input type="file" id="coverFile" accept="image/*" hidden>
+          <div class="cover-paste" id="coverPaste">
+            <b>电脑上直接按 Ctrl+V</b> 把截图粘到这里<br>
+            手机点上面「选图片 / 拍照」，也可以把图片拖进来
+          </div>
+          <div class="cover-crop" id="coverCrop" hidden>
+            <canvas id="cropCanvas"></canvas>
+            <div class="crop-actions">
+              <button type="button" class="btn btn-small" id="btnCropApply">用这块区域</button>
+              <button type="button" class="btn btn-small btn-outline" id="btnCoverAuto">自动找边</button>
+              <button type="button" class="btn btn-small btn-outline" id="btnCropReset">换一张</button>
+            </div>
+            <p class="hint-plain">拖动四个圆点对准书的四个角（斜着拍的会自动掰正）。书脊、环衬、刷边也可以单独拍照存进来。</p>
+          </div>
+          <div class="cover-preview" id="coverPreview" hidden><img id="coverPreviewImg" alt="封面预览"></div>
+        </div>
         <p class="form-tip" id="grTip" hidden>已按书名+作者打开 Goodreads 搜索，找到对应书籍页面后，复制网址粘贴到上面即可。</p>
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" id="btnCancel">取消</button>
@@ -226,7 +290,7 @@
     <div class="sheet-grabber"></div>
     <div class="sheet-body">
       <h2>导入 Excel</h2>
-      <p class="import-info">选择从腾讯文档导出的 .xlsx 文件。<br>按「书名+作者」匹配：已有的记录会被更新，新记录会添加。</p>
+      <p class="import-info">选 .xlsx（腾讯文档导出的表）或 .csv 文件。<br>匹配顺序：<b>ISBN → 书名+作者 → 书名唯一</b>；已有记录会被更新，新记录会添加。<br>CSV 会自动识别 UTF-8 / GBK 编码和逗号 / 分号分隔。</p>
       <label class="checkbox-row">
         <input type="checkbox" id="importOverwrite">
         <span>导入前清空现有全部数据（谨慎）</span>
@@ -303,6 +367,17 @@
           <select id="sCurrency"></select>
         </label>
       </div>
+      <div class="field-pair">
+        <label class="field">
+          <span>年度 Skip 配额（几本盒子各自不同，没有就留空）</span>
+          <input type="number" id="sSkipTotal" min="0" step="1" inputmode="numeric" placeholder="如 6">
+        </label>
+        <label class="field">
+          <span>今年已用</span>
+          <input type="number" id="sSkipUsed" min="0" step="1" inputmode="numeric" value="0">
+        </label>
+      </div>
+      <p class="hint-plain">填了配额之后：每点一次「跳过这期」自动 +1，改回其他状态会 −1；快用完（剩 1 次）会变黄提醒，用完了变红提醒。跨年会自动把「已用」清零。</p>
       <label class="field">
         <span>备注（可选）</span>
         <textarea id="sNote" rows="2" placeholder="如：3 个月起订 / 提前两周爆料书单"></textarea>
@@ -379,6 +454,7 @@
       <h2>汇率（折合人民币）</h2>
       <p class="hint-plain">填「1 单位外币 = 多少人民币」。默认值是写死的参考值、会过期，点下面的按钮拉最新汇率，也可以自己填。</p>
       <button class="btn btn-outline btn-block" type="button" id="btnFxUpdate">联网更新汇率</button>
+      <p class="hint-plain" id="fxUpdated"></p>
       <div class="fx-list" id="fxList"></div>
       <div class="form-actions">
         <button class="btn btn-ghost" type="button" id="btnFxCancel">取消</button>
@@ -388,7 +464,7 @@
   </div>
 </div>
 
-<input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+<input type="file" id="fileInput" accept=".xlsx,.xls,.csv,text/csv" hidden>
 
 <div class="toast" id="toast" hidden></div>
 

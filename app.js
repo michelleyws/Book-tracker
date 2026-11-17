@@ -6,6 +6,10 @@
   var LS_SUBS = 'bookSubs.v1';
   var LS_FX = 'fxRates.v1';
   var GR_SITE = 'https://www.goodreads.com';
+  /* 书籍类型（可下拉选，也可自己输别的） */
+  var GENRES = ['Fantasy', 'Romance', 'Sci-Fi', 'Horror', 'Mystery', 'Thriller',
+    'Literary Fiction', 'Historical Fiction', 'Non-fiction', 'Young Adult', 'Other'];
+  var READ_STATUS = ['未阅读', '在读', '已读'];
 
   /* ============ 存储 ============ */
   function load() {
@@ -67,25 +71,54 @@
   var CUR = [
     ['CNY', '¥', '人民币'], ['USD', '$', '美元'], ['GBP', '£', '英镑'],
     ['AUD', 'A$', '澳元'], ['EUR', '€', '欧元'], ['CAD', 'C$', '加元'],
-    ['JPY', '¥', '日元'], ['HKD', 'HK$', '港币'], ['SGD', 'S$', '新加坡元'], ['NZD', 'NZ$', '新西兰元']
+    ['JPY', '¥', '日元'], ['HKD', 'HK$', '港币'], ['SGD', 'S$', '新加坡元'],
+    ['NZD', 'NZ$', '新西兰元'], ['CHF', 'CHF ', '瑞士法郎']
   ];
   /* 1 单位该币种 = 多少人民币。默认值只是起始值（可在设置里改，也可联网更新） */
-  var DEFAULT_FX = { CNY: 1, USD: 7.20, GBP: 9.10, AUD: 4.70, EUR: 7.80, CAD: 5.20, JPY: 0.047, HKD: 0.92, SGD: 5.35, NZD: 4.30 };
+  var DEFAULT_FX = { CNY: 1, USD: 7.20, GBP: 9.10, AUD: 4.70, EUR: 7.80, CAD: 5.20,
+    JPY: 0.047, HKD: 0.92, SGD: 5.35, NZD: 4.30, CHF: 8.10 };
+  var LS_FX_AT = 'fxRatesAt.v1';
+  /* 汇率更新时间：联网更新或手动保存时写一次，界面上显示出来，
+     免得用户以为看到的是最新汇率。（参考了朋友那份的做法） */
+  var fxAt = localStorage.getItem(LS_FX_AT) || '';
   var fx = (function () {
     var o = {};
     try { var raw = localStorage.getItem(LS_FX); if (raw) o = JSON.parse(raw) || {}; } catch (e) { o = {}; }
     CUR.forEach(function (c) { if (typeof o[c[0]] !== 'number' || !(o[c[0]] > 0)) o[c[0]] = DEFAULT_FX[c[0]]; });
     return o;
   })();
-  function saveFx() { try { localStorage.setItem(LS_FX, JSON.stringify(fx)); } catch (e) {} }
-  function curOf(r) { var c = trim(r && r.currency).toUpperCase(); return fx[c] ? c : 'CNY'; }
+  function saveFx(at) {
+    if (at) fxAt = at;
+    try {
+      localStorage.setItem(LS_FX, JSON.stringify(fx));
+      if (fxAt) localStorage.setItem(LS_FX_AT, fxAt);
+    } catch (e) {}
+  }
+  function curOf(r) {
+    var c = trim(r && r.currency).toUpperCase();
+    return c || 'CNY';
+  }
+  /* 1 单位该币种 = 多少人民币；没有汇率返回 null。
+     注意：以前是 `fx[c] || 1` —— 缺汇率时会静默按 1:1 算进合计，金额直接算错。
+     现在缺汇率的一律踢出合计，并在界面上标出来。 */
+  function rateOf(cur) {
+    var c = trim(cur).toUpperCase() || 'CNY';
+    if (c === 'CNY') return 1;
+    return (typeof fx[c] === 'number' && fx[c] > 0) ? fx[c] : null;
+  }
+  function curKnown(cur) { return rateOf(cur) !== null; }
   function curSymbol(c) { for (var i = 0; i < CUR.length; i++) if (CUR[i][0] === c) return CUR[i][1]; return ''; }
   function curName(c) { for (var i = 0; i < CUR.length; i++) if (CUR[i][0] === c) return CUR[i][2]; return c; }
   /* 折合人民币；没填价格返回 null */
   function cnyOf(r) {
     var n = priceVal(r && r.price);
     if (n == null) return null;
-    return n * (fx[curOf(r)] || 1);
+    var rt = rateOf(curOf(r));
+    return rt === null ? null : n * rt;
+  }
+  /* 有价格但缺汇率 → 计入「缺汇率未计入」的条数 */
+  function rateMissing(r) {
+    return priceVal(r && r.price) != null && rateOf(curOf(r)) === null;
   }
   function money(n) { return '¥' + (+n).toFixed(2).replace(/\.00$/, ''); }
 
@@ -97,7 +130,7 @@
   }
 
   /* ============ 渲染 ============ */
-  var state = { q: '', filter: 'all', sort: 'date-desc' };
+  var state = { q: '', filter: 'all', sort: 'date-desc', genre: '' };
 
   /* ============ 长按多选 / 批量删除 ============ */
   var selecting = false;      // 是否在多选模式
@@ -160,10 +193,14 @@
       if (state.filter === 'yes' && r.owned !== '是') return false;
       if (state.filter === 'pending' && r.owned !== '没到手') return false;
       if (state.filter === 'no' && (r.owned === '是' || r.owned === '没到手')) return false;
+      if (state.filter === 'reading' && r.readStatus !== '在读') return false;
+      if (state.filter === 'read' && r.readStatus !== '已读') return false;
+      if (state.genre && trim(r.genre) !== state.genre) return false;
       if (!q) return true;
       /* 所有字段都参与搜索 */
       return [r.title, r.author, r.series, r.publisher, r.source, r.sourceUrl,
-        r.note, r.owned, r.binding, r.date, r.price, r.currency, r.goodreadsUrl]
+        r.note, r.owned, r.binding, r.date, r.price, r.currency, r.goodreadsUrl,
+        r.isbn, r.genre, r.readStatus, r.finishDate]
         .some(function (v) { return trim(v).toLowerCase().indexOf(q) !== -1; });
     });
     list.sort(function (a, b) {
@@ -192,11 +229,15 @@
     });
     /* 注意：不要把局部变量取名 money —— 会和上面那个 money() 函数同名，
        var 提升后整个函数里 money 都变成 undefined，调用直接报 not a function。 */
+    var missingFx = 0;
+    records.forEach(function (r) { if (rateMissing(r)) missingFx++; });
     var moneyText = sum ? money(sum) : '—';
     $('summaryCard').innerHTML =
       '<div class="sum-tile">' +
       '<div class="sum-num green">' + (got + pending) + '</div>' +
       '<div class="sum-money">' + moneyText + (foreign ? '（含 ' + foreign + ' 条外币）' : '') + '</div>' +
+      (missingFx ? '<div class="sum-warn">⚠️ ' + missingFx + ' 条缺汇率，未计入合计</div>' : '') +
+      (fxAt ? '<div class="sum-fxat">汇率 ' + esc(fxAt) + '</div>' : '') +
       '<div class="sum-label">已购买 · 含没到手</div></div>' +
       '<div class="sum-tile">' +
       '<div class="sum-num orange">' + pending + '</div>' +
@@ -209,6 +250,24 @@
       '<div class="sum-label">全部记录</div></div>';
   }
 
+  /* 类型下拉：预置几个常见类型 + 书库里实际出现过的 */
+  function fillGenreFilter() {
+    var sel = $('genreFilter');
+    if (!sel) return;
+    var vals = {}, out = [];
+    GENRES.forEach(function (g) { if (!vals[g]) { vals[g] = 1; out.push(g); } });
+    records.forEach(function (r) {
+      var g = trim(r.genre);
+      if (g && !vals[g]) { vals[g] = 1; out.push(g); }
+    });
+    var keep = state.genre;
+    sel.innerHTML = '<option value="">全部类型</option>' + out.map(function (g) {
+      return '<option value="' + esc(g) + '"' + (g === keep ? ' selected' : '') + '>' + esc(g) + '</option>';
+    }).join('');
+    sel.value = keep;
+    var dl = $('genreList');
+    if (dl) dl.innerHTML = out.map(function (g) { return '<option value="' + esc(g) + '">'; }).join('');
+  }
   function render() {
     renderSummary();
     var list = filtered();
@@ -222,14 +281,20 @@
       if (trim(r.binding)) tags.push('<span class="tag ' + (r.binding === '精装' ? 'binding-hc' : 'binding-pb') + '">' + esc(r.binding) + '</span>');
       if (trim(r.date)) tags.push('<span class="tag date">' + esc(r.date) + '</span>');
       if (trim(r.price)) {
-        var pc = curOf(r), pv = priceVal(r.price);
+        var pc = curOf(r), pv = priceVal(r.price), prt = rateOf(pc);
         tags.push('<span class="tag price">' + esc(curSymbol(pc) + (pv == null ? trim(r.price) : pv)) +
-          (pc !== 'CNY' ? ' ≈' + money(pv * fx[pc]) : '') + '</span>');
+          (pc !== 'CNY' ? (prt === null ? ' · 缺汇率' : ' ≈' + money(pv * prt)) : '') + '</span>');
       }
       if (trim(r.source)) tags.push('<span class="tag">' + esc(r.source) + '</span>');
+      if (trim(r.genre)) tags.push('<span class="tag genre">' + esc(r.genre) + '</span>');
+      if (trim(r.readStatus) && r.readStatus !== '未阅读') {
+        tags.push('<span class="tag read">' + esc(r.readStatus) +
+          (trim(r.rating) ? ' ' + '★'.repeat(+r.rating || 0) : '') + '</span>');
+      }
       return '<div class="book-card' + (selected[r.id] ? ' selected' : '') + '" data-id="' + r.id + '">' +
         (selecting ? '<span class="sel-dot' + (selected[r.id] ? ' on' : '') + '">✓</span>' : '') +
         '<span class="owned-dot ' + (r.owned === '是' ? 'yes' : r.owned === '没到手' ? 'pending' : 'no') + '"></span>' +
+        (r.coverId ? '<div class="cover-box loading"><img data-cover="' + esc(r.coverId) + '" alt="" decoding="async"></div>' : '') +
         '<div class="book-main">' +
         '<div class="book-title-row"><a class="book-title" data-gr="' + r.id + '" href="' + esc(grUrlFor(r)) + '" target="_blank" rel="noopener">' + esc(r.title || '（无书名）') + '</a></div>' +
         (trim(r.author) ? '<div class="book-author">' + esc(r.author) + '</div>' : '') +
@@ -240,6 +305,9 @@
 
     renderDueBanner();
     renderSubs();
+    fillGenreFilter();
+    renderReading();
+    hydrateCovers(box);
 
     /* 长按（触屏按住 0.55 秒 / 右键）进入多选；多选模式下点击 = 勾选/取消 */
     box.querySelectorAll('.book-card').forEach(function (card) {
@@ -294,10 +362,15 @@
     var rows = [
       ['作者', r.author], ['系列', r.series], ['状态', ownedText],
       ['装帧', r.binding], ['购入日期', r.date], ['购入来源', r.source],
-      ['价格', priceText], ['出版社', r.publisher]
+      ['价格', priceText], ['出版社', r.publisher],
+      ['类型', r.genre], ['ISBN', r.isbn],
+      ['阅读状态', trim(r.readStatus) && r.readStatus !== '未阅读'
+        ? r.readStatus + (trim(r.rating) ? ' · ' + r.rating + '/5 ★' : '') : ''],
+      ['读完日期', r.finishDate]
     ].filter(function (p) { return trim(p[1]); });
 
     $('detailBody').innerHTML =
+      (r.coverId ? '<div class="detail-cover loading"><img data-cover="' + esc(r.coverId) + '" alt=""></div>' : '') +
       '<div class="detail-title">' + esc(r.title) + '</div>' +
       (rows.length ? '<dl class="detail-grid">' + rows.map(function (p) {
         return '<dt>' + p[0] + '</dt><dd>' + esc(p[1]) + '</dd>';
@@ -323,6 +396,7 @@
       save(); closeModal('detailModal'); render(); toast('已删除');
     };
     openModal('detailModal');
+    if (r.coverId) hydrateCovers($('detailBody'));
   }
 
   /* ============ 表单 ============ */
@@ -344,7 +418,13 @@
     if ($('formBoxTip')) $('formBoxTip').hidden = true;
     $('fPublisher').value = isEdit ? rec.publisher : '';
     $('fNote').value = isEdit ? rec.note : '';
+    $('fIsbn').value = isEdit ? (rec.isbn || '') : '';
+    $('fGenre').value = isEdit ? (rec.genre || '') : '';
+    $('fReadStatus').value = isEdit ? (rec.readStatus || '未阅读') : '未阅读';
+    $('fRating').value = isEdit ? (rec.rating || '') : '';
+    $('fFinish').value = isEdit && rec.finishDate ? toInputDate(rec.finishDate) : '';
     $('fGrUrl').value = isEdit ? rec.goodreadsUrl : '';
+    resetCoverForm(rec);
     $('fGrBookUrlH').value = isEdit ? (rec.grBookUrl || '') : '';
     $('fGrAuthorUrlH').value = isEdit ? (rec.grAuthorUrl || '') : '';
     $('fGrSeriesUrlH').value = isEdit ? (rec.grSeriesUrl || '') : '';
@@ -384,10 +464,16 @@
       publisher: trim($('fPublisher').value),
       note: trim($('fNote').value),
       currency: $('fCurrency') ? $('fCurrency').value : 'CNY',
+      isbn: trim($('fIsbn') ? $('fIsbn').value : '').replace(/[-\s]/g, ''),
+      genre: trim($('fGenre') ? $('fGenre').value : ''),
+      readStatus: $('fReadStatus') ? $('fReadStatus').value : '',
+      rating: $('fRating') ? $('fRating').value : '',
+      finishDate: fromInputDate($('fFinish') ? $('fFinish').value : ''),
       goodreadsUrl: trim($('fGrUrl').value),
       grBookUrl: trim($('fGrBookUrlH').value),
       grAuthorUrl: trim($('fGrAuthorUrlH').value),
-      grSeriesUrl: trim($('fGrSeriesUrlH').value)
+      grSeriesUrl: trim($('fGrSeriesUrlH').value),
+      coverId: coverIdFor($('fId').value)
     };
     if (!data.title) { toast('请填写书名'); return; }
     var savedRec = null;
@@ -410,6 +496,46 @@
     }
     closeModal('formModal'); render();
   });
+
+  /* ---- 封面接线 ---- */
+  if ($('coverFile')) {
+    $('coverFile').addEventListener('change', function () { var f = this.files[0]; this.value = ''; loadCoverFile(f); });
+  }
+  if ($('btnCoverPick')) $('btnCoverPick').onclick = function () { $('coverFile').click(); };
+  if ($('btnCoverDel')) $('btnCoverDel').onclick = deleteCover;
+  if ($('btnCropApply')) $('btnCropApply').onclick = applyCover;
+  if ($('btnCoverAuto')) $('btnCoverAuto').onclick = autoCoverCorners;
+  if ($('btnCropReset')) {
+    $('btnCropReset').onclick = function () {
+      $('coverCrop').hidden = true;
+      $('coverPaste').hidden = false;
+      cropImg = null; cropPts = null;
+    };
+  }
+  if ($('coverPaste')) {
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      $('coverPaste').addEventListener(ev, function (e) { e.preventDefault(); this.classList.add('over'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      $('coverPaste').addEventListener(ev, function (e) { e.preventDefault(); this.classList.remove('over'); });
+    });
+    $('coverPaste').addEventListener('drop', function (e) {
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) loadCoverFile(f);
+    });
+  }
+  /* 电脑上直接 Ctrl+V 粘贴截图（手机上用「选图片/拍照」按钮） */
+  document.addEventListener('paste', function (e) {
+    if ($('formModal').hidden) return;
+    var it = (e.clipboardData && e.clipboardData.items) || [];
+    for (var i = 0; i < it.length; i++) {
+      if (it[i].type && it[i].type.indexOf('image') === 0) {
+        var f = it[i].getAsFile();
+        if (f) { e.preventDefault(); loadCoverFile(f); toast('已粘贴图片，拖四角对准书'); return; }
+      }
+    }
+  });
+  hookCrop();
 
   $('btnGrSearch').addEventListener('click', function () {
     var q = [$('fTitle').value, $('fAuthor').value, $('fSeries').value]
@@ -1409,6 +1535,17 @@
   $('btnCancel').onclick = function () { closeModal('formModal'); };
   $('searchInput').addEventListener('input', function () { state.q = this.value; render(); });
   $('sortSelect').addEventListener('change', function () { state.sort = this.value; render(); });
+  if ($('genreFilter')) {
+    $('genreFilter').addEventListener('change', function () { state.genre = this.value; render(); });
+  }
+  if ($('readList')) {
+    $('readList').addEventListener('click', function (e) {
+      var a = e.target.closest('[data-read]');
+      if (!a || e.target.closest('a[data-gr]')) return;
+      openDetail(a.dataset.read);
+    });
+  }
+  /* 编辑页里点「标记已读」时用不到单独按钮，走标签页就行 */
   $('filterRow').querySelectorAll('.chip').forEach(function (chip) {
     chip.onclick = function () {
       $('filterRow').querySelectorAll('.chip').forEach(function (c) { c.classList.remove('active'); });
@@ -1430,13 +1567,14 @@
     if (!records.length) { toast('暂无数据可导出'); return; }
     /* 腾讯文档原格式：第 1 行空，表头在第 2 行（B~K），数据从第 3 行开始 */
     var COLS = ['是否入手', '系列', '书名', '作者', '平装/精装', '购入日期', '购入来源', '价格', '出版社', '备注',
-      '币种', '折合人民币'];
+      '币种', '折合人民币', '类型', '阅读状态', '评分', '读完日期', 'ISBN'];
     var rowBlank = new Array(COLS.length + 1).fill('');
     var aoa = [rowBlank, [''].concat(COLS)].concat(records.map(function (r) {
       var cny = cnyOf(r);
       return ['', r.owned, r.series, r.title, r.author, r.binding, r.date,
         r.source, r.price, r.publisher, r.note, curOf(r),
-        cny == null ? '' : (+cny).toFixed(2)]
+        cny == null ? '' : (+cny).toFixed(2),
+        r.genre, r.readStatus, r.rating, r.finishDate, r.isbn]
         .map(function (v) { return v == null ? '' : v; });
     }));
     var ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -1458,12 +1596,216 @@
     toast('已导出 ' + records.length + ' 条（腾讯文档原格式）');
   };
 
+
+  /* ============ CSV 导入 ============
+     吸收了朋友那份的几个做法：
+     ① 编码嗅探：先按 UTF-8 严格解，失败自动退 GBK（中文表格最常见的坑）
+     ② 分隔符探测：逗号 / 分号
+     ③ 中英文表头别名表
+     ④ 三级匹配：ISBN → 书名+作者 → 书名唯一时才认；而且同一条已有记录不会被两行 CSV 抢走
+     ⑤ 非破坏性合并：CSV 空白的字段不覆盖已有资料
+     ⑥ 空间不足时整体回滚，不留半截数据
+     */
+  var CSV_ALIAS = {
+    title: ['title', 'book title', '书名', '英文书名', '书籍名称'],
+    author: ['author', 'authors', '作者'],
+    isbn: ['isbn', 'isbn13', 'isbn-13', 'isbn10', 'isbn-10', '书号'],
+    publisher: ['publisher', '出版社'],
+    series: ['series', 'series name', '系列', '系列名称'],
+    owned: ['owned', '是否入手', '收藏状态', '持有状态'],
+    binding: ['binding', '装帧', '平装/精装', '版本'],
+    date: ['date', 'purchase date', 'date purchased', '购入日期', '购买日期'],
+    source: ['source', '购入来源', '来源', '购买渠道'],
+    price: ['price', 'cost', 'purchase price', '价格', '购买价格', '购入价格', '购买成本'],
+    currency: ['currency', '币种', '购入币种'],
+    note: ['note', 'notes', '备注', '笔记'],
+    genre: ['genre', 'category', 'type', '类型', '分类'],
+    readStatus: ['read status', 'reading status', 'status', '阅读状态'],
+    rating: ['rating', '评分', '阅读评分'],
+    finishDate: ['finish date', 'date finished', '读完日期', '完成日期'],
+    sourceUrl: ['url', 'link', '购买链接', '链接'],
+    grUrl: ['goodreads', 'goodreads url', 'goodreads链接', 'goodreads 链接']
+  };
+
+  function parseCsvText(text) {
+    text = text.replace(/^\uFEFF/, '');
+    var first = text.split(/\r?\n/, 1)[0] || '';
+    var comma = (first.match(/,/g) || []).length;
+    var semi = (first.match(/;/g) || []).length;
+    var tab = (first.match(/\t/g) || []).length;
+    var d = tab > comma && tab > semi ? '\t' : (semi > comma ? ';' : ',');
+    var rows = [], row = [], cell = '', quoted = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i], next = text[i + 1];
+      if (quoted) {
+        if (ch === '"' && next === '"') { cell += '"'; i++; }
+        else if (ch === '"') { quoted = false; }
+        else { cell += ch; }
+      } else if (ch === '"' && cell === '') { quoted = true; }
+      else if (ch === d) { row.push(cell); cell = ''; }
+      else if (ch === '\n') { row.push(cell.replace(/\r$/, '')); rows.push(row); row = []; cell = ''; }
+      else { cell += ch; }
+    }
+    if (cell.length || row.length) { row.push(cell.replace(/\r$/, '')); rows.push(row); }
+    return rows.filter(function (r) { return r.some(function (v) { return trim(v) !== ''; }); });
+  }
+  function normKey(s) {
+    return trim(s).normalize ? trim(s).normalize('NFKC').toLowerCase().replace(/\s+/g, ' ')
+      : trim(s).toLowerCase().replace(/\s+/g, ' ');
+  }
+  function normOwned(v) {
+    var s = trim(v);
+    if (/^(true|1|y|yes|是|已到手|在藏)$/i.test(s)) return '是';
+    if (/没到手|未到|待收|运输中/.test(s)) return '没到手';
+    if (/^(false|0|n|no|否|未购买|想买|待购)$/i.test(s)) return '否';
+    return s ? '是' : '';
+  }
+  function importCsv(file) {
+    var overwrite = $('importOverwrite').checked;
+    closeModal('importModal');
+    toast('正在读取 ' + file.name + '…');
+    var reader = new FileReader();
+    reader.onload = function (ev) {
+      var buf = ev.target.result;
+      var raw = null, enc = 'UTF-8';
+      try { raw = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+      catch (e1) {
+        try { raw = new TextDecoder('gbk').decode(buf); enc = 'GBK'; }
+        catch (e2) { toast('认不出这个文件的编码，请另存为 UTF-8 或 GBK 再试'); return; }
+      }
+      applyCsvText(raw, enc, file.name, overwrite);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  /* 真正干活的纯逻辑：给一段 CSV 文本就干活，方便单测（也方便以后接别的来源） */
+  function applyCsvText(raw, enc, fileName, overwrite) {
+    {
+      var rows = parseCsvText(raw);
+      if (rows.length < 2) { toast('文件里没有数据行'); return; }
+      var headers = rows[0].map(normKey), map = {}, fi;
+      Object.keys(CSV_ALIAS).forEach(function (f) {
+        for (var i = 0; i < headers.length; i++) {
+          if (map[f] !== undefined) break;
+          if (CSV_ALIAS[f].some(function (a) { return normKey(a) === headers[i]; })) map[f] = i;
+        }
+      });
+      if (map.title === undefined) {
+        toast('没找到「书名」列。认到的表头：' + rows[0].filter(Boolean).join('、'));
+        return;
+      }
+      var incoming = [];
+      rows.slice(1).forEach(function (r) {
+        var o = {};
+        Object.keys(CSV_ALIAS).forEach(function (k) {
+          o[k] = map[k] === undefined ? '' : trim(r[map[k]]);
+        });
+        if (!o.title) return;
+        incoming.push(o);
+      });
+      if (!incoming.length) { toast('没有有效的书籍记录'); return; }
+
+      /* 三级匹配索引 */
+      var byIsbn = {}, byTitleAuthor = {}, byTitle = {}, used = {};
+      function push(map, k, idx) { if (!k) return; (map[k] = map[k] || []).push(idx); }
+      records.forEach(function (b, i) {
+        push(byIsbn, normKey(b.isbn).replace(/[-\s]/g, ''), i);
+        push(byTitleAuthor, normKey(b.title) + '|' + normKey(b.author), i);
+        push(byTitle, normKey(b.title), i);
+      });
+      function take(arr) {
+        if (!arr) return undefined;
+        for (var i = 0; i < arr.length; i++) if (!used[arr[i]]) return arr[i];
+        return undefined;
+      }
+      var next = overwrite ? [] : records.slice();
+      if (overwrite) { byIsbn = {}; byTitleAuthor = {}; byTitle = {}; used = {}; }
+      var added = 0, updated = 0, priceUp = 0, titleOnly = 0;
+      /* 新增的记录先攒在这里，最后统一并入 next 的开头。
+         ⚠️ 绝对不能在循环里直接 next.unshift() —— 那会把数组整体右移，
+         而下面用的是「按索引匹配已有记录」，一旦移位，
+         后面所有行都会更新到错的记录上（实测会把已有书整条改写）。 */
+      var fresh = [];
+      incoming.forEach(function (o) {
+        var isbn = normKey(o.isbn).replace(/[-\s]/g, '');
+        var t = normKey(o.title), a = normKey(o.author);
+        var idx = isbn ? take(byIsbn[isbn]) : undefined;
+        if (idx === undefined && t && a) idx = take(byTitleAuthor[t + '|' + a]);
+        /* 第三级：书名在库里唯一就认，即使作者写法不同。
+           中文表格常把作者写成译名（「休·豪伊」vs「Hugh Howey」），
+           只按「书名+作者」认不出，会白白多出一条重复记录。
+           只在书名唯一时才这么做（同名多本一律不认），并单独计数告知用户。 */
+        if (idx === undefined && t) {
+          var c = byTitle[t] || [];
+          if (c.length === 1 && !used[c[0]]) { idx = c[0]; titleOnly++; }
+        }
+        var data = {};
+        if (o.title) data.title = o.title;
+        if (o.author) data.author = o.author;
+        if (o.isbn) data.isbn = o.isbn.replace(/[-\s]/g, '');
+        if (o.publisher) data.publisher = o.publisher;
+        if (o.series) data.series = o.series;
+        if (o.binding) data.binding = o.binding;
+        if (o.date) data.date = normalizeDate(o.date);
+        if (o.source) data.source = o.source;
+        if (o.note) data.note = o.note;
+        if (o.genre) data.genre = o.genre;
+        if (o.readStatus) data.readStatus = o.readStatus;
+        if (o.rating) data.rating = o.rating;
+        if (o.finishDate) data.finishDate = normalizeDate(o.finishDate);
+        if (o.sourceUrl) data.sourceUrl = o.sourceUrl;
+        if (o.owned) data.owned = normOwned(o.owned);
+        if (o.price) {
+          data.price = normalizePrice(o.price);
+          data.currency = o.currency ? o.currency.toUpperCase() : 'CNY';
+        } else if (o.currency) {
+          data.currency = o.currency.toUpperCase();
+        }
+        if (o.grUrl && isGR(o.grUrl)) { data.goodreadsUrl = o.grUrl; data.grBookUrl = o.grUrl; }
+        if (idx !== undefined) {
+          used[idx] = 1;
+          var merged = {};
+          Object.keys(next[idx]).forEach(function (k) { merged[k] = next[idx][k]; });
+          Object.keys(data).forEach(function (k) { if (data[k] !== '' && data[k] != null) merged[k] = data[k]; });
+          if (data.price) priceUp++;
+          next[idx] = merged;
+          updated++;
+        } else {
+          data.id = uid();
+          if (!data.currency) data.currency = 'CNY';
+          if (!data.owned) data.owned = '否';
+          fresh.push(data);
+          added++;
+        }
+      });
+      var summary = '编码：' + enc + '\n' + '识别书籍：' + incoming.length + ' 本\n' +
+        '更新已有：' + updated + ' 本　新增：' + added + ' 本\n' + '价格更新：' + priceUp + ' 条\n' +
+        (titleOnly ? '其中 ' + titleOnly + ' 条是「仅书名相同、作者写法不同」匹配上的，请核对\n' : '') +
+        '\n匹配顺序：ISBN → 书名+作者 → 书名唯一\n' +
+        'CSV 里空白的字段不会覆盖已有资料。\n\n' + (overwrite ? '⚠️ 已勾选「导入前清空」\n' : '') + '继续导入？';
+      if (!confirm(summary)) { toast('已取消导入'); return; }
+      var backup = records;
+      try {
+        records = fresh.concat(next);
+        save();
+        render();
+        toast('CSV 导入完成：更新 ' + updated + ' 本，新增 ' + added + ' 本');
+      } catch (err) {
+        records = backup;
+        toast(/quota/i.test(String(err)) || (err && err.name === 'QuotaExceededError')
+          ? '手机存储空间不足，已回滚。先导出备份再清理。' : '保存失败，已回滚：' + err.message);
+      }
+      return { added: added, updated: updated, enc: enc, priceUp: priceUp, titleOnly: titleOnly };
+    }
+  }
+
   /* ============ Excel 导入 ============ */
   var HEADER_ALIAS = {
     '是否入手': 'owned', '系列': 'series', '书名': 'title', '作者': 'author',
     '平装/精装': 'binding', '装帧': 'binding', '购入日期': 'date', '购入来源': 'source',
     '价格': 'price', '出版社': 'publisher', '备注': 'note',
     '币种': 'currency', '货币': 'currency',
+    '类型': 'genre', '分类': 'genre', 'genre': 'genre',
+    '阅读状态': 'readStatus', '评分': 'rating', '读完日期': 'finishDate', 'isbn': 'isbn', 'ISBN': 'isbn',
     '购买链接': 'sourceUrl', 'goodreads链接': 'goodreadsUrl', 'goodreads url': 'goodreadsUrl'
   };
 
@@ -1475,6 +1817,7 @@
     var file = this.files[0];
     this.value = '';
     if (!file) return;
+    if (/\.csv$/i.test(file.name) || /csv/i.test(file.type)) { importCsv(file); return; }
     var overwrite = $('importOverwrite').checked;
     closeModal('importModal');
     var reader = new FileReader();
@@ -1569,6 +1912,9 @@
           source: cell('source'),
           price: normalizePrice(cell('price')),
           currency: cell('currency') ? cell('currency').toUpperCase() : '',
+          isbn: cell('isbn').replace(/[-\s]/g, ''),
+          genre: cell('genre'), readStatus: cell('readStatus'),
+          rating: cell('rating'), finishDate: normalizeDate(cell('finishDate')),
           publisher: cell('publisher'),
           note: cell('note'),
           sourceUrl: cell('sourceUrl') || src,
@@ -1740,6 +2086,13 @@
       if (typeof s.chargeDay !== 'number' || s.chargeDay < 0 || s.chargeDay > 31) s.chargeDay = 0;
       if (!s.currency || !fx[s.currency]) s.currency = 'GBP';
       if (typeof s.active !== 'boolean') s.active = true;
+      /* Skip 配额：各家 bookbox 的年度配额不一样，所以按订阅单独存。
+         跨年自动把「已用」清零（只在已经记过年份之后才动，避免把手工填的次数抹掉）。 */
+      if (typeof s.skipTotal !== 'number' && s.skipTotal !== '') s.skipTotal = '';
+      if (typeof s.skipUsed !== 'number') s.skipUsed = +s.skipUsed || 0;
+      var _y = String(new Date().getFullYear());
+      if (s.skipYear && s.skipYear !== _y) { s.skipYear = _y; s.skipUsed = 0; }
+      if (!s.skipYear) s.skipYear = _y;
       s.boxes.forEach(function (b) {
         if (!b.id) b.id = uid();
         if (!Array.isArray(b.books)) b.books = [];
@@ -1801,6 +2154,20 @@
     });
     out.sort(function (a, b) { return a.d - b.d; });
     return out;
+  }
+  /* 年度 Skip 配额：没设置就返回 null */
+  function skipQuota(s) {
+    if (!s || s.skipTotal === '' || s.skipTotal == null) return null;
+    var total = parseInt(s.skipTotal, 10);
+    if (isNaN(total) || total <= 0) return null;
+    var used = parseInt(s.skipUsed, 10);
+    if (isNaN(used) || used < 0) used = 0;
+    return { total: total, used: used, left: total - used };
+  }
+  function quotaText(s) {
+    var q = skipQuota(s);
+    if (!q) return '';
+    return 'Skip ' + q.used + '/' + q.total + (q.left <= 0 ? '（已用完）' : '（剩 ' + q.left + '）');
   }
   function makeBox(s, when) {
     var d = when || today0();
@@ -1893,6 +2260,11 @@
     var meta = [s.chargeDay ? (s.cycle === 2 ? '每两月 ' : '每月 ') + s.chargeDay + ' 日扣款' : '扣款日未设置'];
     if (trim(s.amount)) meta.push(curSymbol(s.currency) + s.amount + '（≈' + money(priceVal(s.amount) * (fx[s.currency] || 1)) + '）');
     if (trim(s.site)) meta.push('<a href="' + esc(s.site) + '" target="_blank" rel="noopener">官网</a>');
+    var qs = skipQuota(s);
+    if (qs) {
+      meta.push('<span class="quota' + (qs.left <= 0 ? ' out' : qs.left <= 1 ? ' tight' : '') + '">' +
+        esc(quotaText(s)) + '</span>');
+    }
     var bsLine = '';
     if (s.bsInfo) {
       bsLine = '<div class="bs-line">📋 官网：' + esc(bsRulesText(s.bsInfo).slice(0, 200)) +
@@ -1937,11 +2309,23 @@
         '<div class="sum-tile"><div class="sum-num blue">' + chargedN + '</div><div class="sum-label">已扣款期数</div></div>' +
         '<div class="sum-tile"><div class="sum-num">' + skipN + '</div><div class="sum-label">已跳过期数</div></div>';
     }
+    var qalerts = [];
+    subs.forEach(function (s) {
+      if (!s.active) return;
+      var q = skipQuota(s);
+      if (q && q.left <= 1) qalerts.push({ s: s, q: q });
+    });
     var al = $('subsAlert'), alerts = dueAlerts();
     if (al) {
-      if (alerts.length) {
+      if (alerts.length || qalerts.length) {
         al.hidden = false;
-        al.innerHTML = alerts.slice(0, 4).map(function (a) {
+        al.innerHTML = qalerts.map(function (x) {
+          return '<div class="alert-row' + (x.q.left <= 0 ? ' late' : '') + '">' +
+            (x.q.left <= 0 ? '⛔ ' : '⚠️ ') + '<b>' + esc(x.s.name) + '</b> 年度 Skip 配额' +
+            (x.q.left <= 0 ? '已用完（' + x.q.used + '/' + x.q.total + '）—— 再跳可能会被强制扣款'
+                           : '只剩 1 次（' + x.q.used + '/' + x.q.total + '）') +
+            '<button class="btn btn-small" type="button" data-act="edit" data-sub="' + x.s.id + '">改配额</button></div>';
+        }).join('') + alerts.slice(0, 4).map(function (a) {
           return '<div class="alert-row' + (a.gap < 0 ? ' late' : '') + '">' +
             (a.gap < 0 ? '⚠️ ' : '⏰ ') + '<b>' + esc(a.s.name) + '</b> ' + cnDate(a.d) + ' 扣款 · ' + gapText(a.gap) +
             (a.b ? (a.b.books.length ? ' · 已登记书目 ' + a.b.books.length + ' 本' : ' · 书目还没登记')
@@ -2016,12 +2400,22 @@
   function setBoxStatus(s, b, st) {
     if (!s || !b) return;
     if (st === 'charged' && !trim(b.amount) && trim(s.amount)) b.amount = trim(s.amount);
+    /* 每次 Skip 计入年度配额；从「已跳过」改回别的状态就把这一次数还回去 */
+    var wasSkip = b.status === 'skipped';
+    if (st === 'skipped' && !wasSkip) s.skipUsed = (parseInt(s.skipUsed, 10) || 0) + 1;
+    if (st !== 'skipped' && wasSkip) s.skipUsed = Math.max(0, (parseInt(s.skipUsed, 10) || 0) - 1);
     b.status = st;
     var added = st === 'charged' ? pushBoxToLibrary(s, b) : 0;   /* 扣款完成 → 这一期的书进书库 */
     saveSubs(); renderSubs(); render();
+    var qt = '';
+    var q = skipQuota(s);
+    if (q && st === 'skipped') {
+      qt = '　Skip ' + q.used + '/' + q.total +
+        (q.left <= 0 ? '：⚠️ 今年配额已用完，再跳可能会被强制扣款' : q.left === 1 ? '：只剩 1 次了' : '');
+    }
     toast(s.name + ' ' + periodLabel(b.period) + '：' +
       (st === 'charged' ? '已记扣款' + (added ? '，' + added + ' 本书已进书库（买了 · 没到手）' : '')
-        : st === 'skipped' ? '已跳过' : '改回待扣款'));
+        : st === 'skipped' ? '已跳过' + qt : '改回待扣款'));
   }
   function unbindBook(s, b, recId) {
     if (!s || !b) return;
@@ -2084,6 +2478,414 @@
     }
   }
 
+
+
+
+  /* ==================================================================
+     封面：粘贴/拍照 → 四角拖动校正透视 → 存 IndexedDB
+     ------------------------------------------------------------------
+     为什么不用 localStorage：localStorage 总共只有约 5MB，而手机拍的封面照
+     压到 1000px 也有几百 KB，存十几本就会爆，还会连带把文字记录一起写不进去
+     （QuotaExceededError）。IndexedDB 是按 GB 算的，所以图片单独放这里，
+     书库的 JSON 里只留一个短 ID。封面是「可选」的，不加也完全不影响使用。
+     ================================================================== */
+  var IDB_NAME = 'booktracker', IDB_STORE = 'covers';
+  var idbP = null, coverUrls = {};
+  function idbOpen() {
+    if (idbP) return idbP;
+    idbP = new Promise(function (res, rej) {
+      if (!window.indexedDB) { rej(new Error('这个浏览器不支持 IndexedDB')); return; }
+      var rq = indexedDB.open(IDB_NAME, 1);
+      rq.onupgradeneeded = function () { rq.result.createObjectStore(IDB_STORE); };
+      rq.onsuccess = function () { res(rq.result); };
+      rq.onerror = function () { rej(rq.error); };
+    });
+    return idbP;
+  }
+  function idbTx(mode, fn) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(IDB_STORE, mode), rq = fn(tx.objectStore(IDB_STORE));
+        tx.oncomplete = function () { res(rq && rq.result); };
+        tx.onerror = function () { rej(tx.error); };
+        tx.onabort = function () { rej(tx.error); };
+      });
+    });
+  }
+  function idbPut(k, b) { return idbTx('readwrite', function (s) { return s.put(b, k); }); }
+  function idbGet(k) { return idbTx('readonly', function (s) { return s.get(k); }); }
+  function idbDel(k) { return idbTx('readwrite', function (s) { return s.delete(k); }); }
+  function idbKeys() { return idbTx('readonly', function (s) { return s.getAllKeys(); }); }
+
+  /* 卡片/详情里的封面是异步取出来的：先渲染占位，再把 blob 变成 objectURL 填进去，
+     期间用 .loading 遮住，避免出现破图闪一下 */
+  function hydrateCovers(root) {
+    var imgs = (root || document).querySelectorAll('img[data-cover]');
+    Array.prototype.forEach.call(imgs, function (img) {
+      var k = img.getAttribute('data-cover');
+      if (!k || img.getAttribute('src')) return;
+      var box = img.parentNode;
+      if (coverUrls[k]) { img.src = coverUrls[k]; if (box) box.classList.remove('loading'); return; }
+      idbGet(k).then(function (blob) {
+        if (!blob) { if (box) { box.classList.remove('loading'); box.classList.add('empty'); } return; }
+        coverUrls[k] = URL.createObjectURL(blob);
+        img.src = coverUrls[k];
+        if (box) box.classList.remove('loading');
+      }).catch(function () { if (box) box.classList.remove('loading'); });
+    });
+  }
+  /* 清理没人引用的图片：反复裁剪/删记录后不留垃圾 */
+  function gcCovers() {
+    idbKeys().then(function (keys) {
+      var live = {}, pending = pendingCoverKey || '';
+      records.forEach(function (r) { if (r.coverId) live[r.coverId] = 1; });
+      (keys || []).forEach(function (k) { if (!live[k] && k !== pending) idbDel(k); });
+    }).catch(function () {});
+  }
+
+  /* ---- 裁剪 ---- */
+  var cropImg = null, cropScale = 1, cropPts = null, cropDrag = -1, cropK = 1;
+  var pendingCoverKey = null, pendingCoverBlob = null;
+  function dist2(a, b) { var dx = a[0] - b[0], dy = a[1] - b[1]; return Math.sqrt(dx * dx + dy * dy); }
+  function beginCrop(img) {
+    if (!img || !(img.naturalWidth || img.width)) { toast('这张图片读不出来'); return; }
+    cropImg = img;
+    var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    cropScale = Math.min(1, 900 / Math.max(w, h));
+    var c = $('cropCanvas');
+    c.width = Math.max(2, Math.round(w * cropScale));
+    c.height = Math.max(2, Math.round(h * cropScale));
+    var ix = Math.round(c.width * 0.1), iy = Math.round(c.height * 0.1);
+    cropPts = [[ix, iy], [c.width - ix, iy], [c.width - ix, c.height - iy], [ix, c.height - iy]];
+    $('coverPaste').hidden = true;
+    $('coverCrop').hidden = false;
+    $('coverPreview').hidden = true;
+    /* 画布内部尺寸可能远大于屏幕上的显示尺寸（手机上是缩着看的），
+       手柄半径要按这个比例放大，否则在手机上小到点不着。 */
+    var rect = c.getBoundingClientRect();
+    cropK = rect.width ? c.width / rect.width : 1;
+    drawCrop();
+  }
+  function drawCrop() {
+    if (!cropImg || !cropPts) return;
+    var c = $('cropCanvas'), ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.drawImage(cropImg, 0, 0, c.width, c.height);
+    ctx.save();
+    ctx.fillStyle = 'rgba(2,6,23,.5)';
+    ctx.beginPath();
+    ctx.rect(0, 0, c.width, c.height);
+    ctx.moveTo(cropPts[0][0], cropPts[0][1]);
+    ctx.lineTo(cropPts[1][0], cropPts[1][1]);
+    ctx.lineTo(cropPts[2][0], cropPts[2][1]);
+    ctx.lineTo(cropPts[3][0], cropPts[3][1]);
+    ctx.closePath();
+    ctx.fill('evenodd');
+    ctx.restore();
+    var k = cropK || 1;
+    ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 2 * k;
+    ctx.beginPath();
+    ctx.moveTo(cropPts[0][0], cropPts[0][1]);
+    for (var i = 1; i < 4; i++) ctx.lineTo(cropPts[i][0], cropPts[i][1]);
+    ctx.closePath(); ctx.stroke();
+    cropPts.forEach(function (q) {
+      ctx.beginPath(); ctx.arc(q[0], q[1], 9 * k, 0, Math.PI * 2);
+      ctx.fillStyle = '#22d3ee'; ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * k; ctx.stroke();
+    });
+  }
+  function hookCrop() {
+    var c = $('cropCanvas');
+    if (!c || c.__hooked) return;
+    c.__hooked = 1;
+    function pos(e) {
+      var r = c.getBoundingClientRect();
+      return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height];
+    }
+    c.addEventListener('pointerdown', function (e) {
+      if (!cropPts) return;
+      var p = pos(e), best = -1, bd = 46 * (cropK || 1);
+      cropPts.forEach(function (q, i) { var d = dist2(p, q); if (d < bd) { bd = d; best = i; } });
+      if (best < 0) return;
+      cropDrag = best;
+      try { c.setPointerCapture(e.pointerId); } catch (er) {}
+      e.preventDefault();
+    });
+    c.addEventListener('pointermove', function (e) {
+      if (cropDrag < 0 || !cropPts) return;
+      var p = pos(e);
+      cropPts[cropDrag] = [Math.max(0, Math.min(c.width, p[0])), Math.max(0, Math.min(c.height, p[1]))];
+      drawCrop();
+      e.preventDefault();
+    });
+    ['pointerup', 'pointercancel'].forEach(function (ev) {
+      c.addEventListener(ev, function () { cropDrag = -1; });
+    });
+  }
+
+  /* 解 8 元方程组，求把 (x,y) 映射到 (u,v) 的单应矩阵 —— 这就是「透视校正」的核心 */
+  function homography(src, dst) {
+    var A = [], b = [], i;
+    for (i = 0; i < 4; i++) {
+      var x = src[i][0], y = src[i][1], u = dst[i][0], v = dst[i][1];
+      A.push([x, y, 1, 0, 0, 0, -x * u, -y * u]); b.push(u);
+      A.push([0, 0, 0, x, y, 1, -x * v, -y * v]); b.push(v);
+    }
+    var n = 8;
+    for (var col = 0; col < n; col++) {
+      var piv = col;
+      for (var r = col + 1; r < n; r++) if (Math.abs(A[r][col]) > Math.abs(A[piv][col])) piv = r;
+      if (Math.abs(A[piv][col]) < 1e-12) return null;
+      var t = A[col]; A[col] = A[piv]; A[piv] = t;
+      var tb = b[col]; b[col] = b[piv]; b[piv] = tb;
+      for (var r2 = 0; r2 < n; r2++) {
+        if (r2 === col) continue;
+        var f = A[r2][col] / A[col][col];
+        if (!f) continue;
+        for (var c2 = col; c2 < n; c2++) A[r2][c2] -= f * A[col][c2];
+        b[r2] -= f * b[col];
+      }
+    }
+    var h = [];
+    for (var k = 0; k < n; k++) h.push(b[k] / A[k][k]);
+    return h;
+  }
+  /* 按四个角把图「掰正」 */
+  function warpCover(maxW) {
+    var s = cropScale;
+    var q = cropPts.map(function (pt) { return [pt[0] / s, pt[1] / s]; });
+    var aw = (dist2(q[0], q[1]) + dist2(q[3], q[2])) / 2;
+    var ah = (dist2(q[0], q[3]) + dist2(q[1], q[2])) / 2;
+    if (!(aw > 8 && ah > 8)) return null;
+    var outW = Math.max(120, Math.min(maxW || 560, Math.round(aw)));
+    var outH = Math.max(60, Math.round(outW * ah / aw));
+    var iw = cropImg.naturalWidth || cropImg.width, ih = cropImg.naturalHeight || cropImg.height;
+    var sc = document.createElement('canvas'); sc.width = iw; sc.height = ih;
+    var sctx = sc.getContext('2d', { willReadFrequently: true });
+    sctx.drawImage(cropImg, 0, 0);
+    var sd = sctx.getImageData(0, 0, iw, ih).data;
+    var H = homography([[0, 0], [outW, 0], [outW, outH], [0, outH]], q);
+    if (!H) return null;
+    var oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
+    var octx = oc.getContext('2d');
+    var od = octx.createImageData(outW, outH), o = od.data, o2 = 0;
+    for (var y = 0; y < outH; y++) {
+      for (var x = 0; x < outW; x++, o2 += 4) {
+        var w = H[6] * x + H[7] * y + 1;
+        var u = (H[0] * x + H[1] * y + H[2]) / w;
+        var v = (H[3] * x + H[4] * y + H[5]) / w;
+        if (u < 0 || v < 0 || u > iw - 1 || v > ih - 1) { o[o2 + 3] = 255; continue; }
+        var x0 = u | 0, y0 = v | 0, fx = u - x0, fy = v - y0;
+        var x1 = Math.min(x0 + 1, iw - 1), y1 = Math.min(y0 + 1, ih - 1);
+        var i00 = (y0 * iw + x0) * 4, i10 = (y0 * iw + x1) * 4;
+        var i01 = (y1 * iw + x0) * 4, i11 = (y1 * iw + x1) * 4;
+        for (var ch = 0; ch < 3; ch++) {
+          var tp = sd[i00 + ch] + (sd[i10 + ch] - sd[i00 + ch]) * fx;
+          var bt = sd[i01 + ch] + (sd[i11 + ch] - sd[i01 + ch]) * fx;
+          o[o2 + ch] = tp + (bt - tp) * fy;
+        }
+        o[o2 + 3] = 255;
+      }
+    }
+    octx.putImageData(od, 0, 0);
+    return oc;
+  }
+  function dataUrlToBlob(u) {
+    var parts = u.split(','), mime = /:(.*?);/.exec(parts[0])[1];
+    var bin = atob(parts[1]), arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+  function saveCoverBlob(blob) {
+    if (!blob) { toast('压缩失败，换一张图试试'); return; }
+    var key = 'cv' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    idbPut(key, blob).then(function () {
+      if (pendingCoverKey) {
+        idbDel(pendingCoverKey);
+        if (coverUrls[pendingCoverKey]) { URL.revokeObjectURL(coverUrls[pendingCoverKey]); delete coverUrls[pendingCoverKey]; }
+      }
+      pendingCoverKey = key; pendingCoverBlob = blob;
+      coverUrls[key] = URL.createObjectURL(blob);
+      showCoverPreview();
+      toast('封面已裁好 · ' + Math.round(blob.size / 1024) + ' KB');
+    }).catch(function (e) { toast('存封面失败：' + ((e && e.message) || e)); });
+  }
+  function applyCover() {
+    if (!cropImg || !cropPts) { toast('先选一张图片'); return; }
+    var oc;
+    try { oc = warpCover(560); } catch (e) { toast('裁剪失败：' + e.message); return; }
+    if (!oc) { toast('四个角没对好，拖一下再试'); return; }
+    if (oc.toBlob) oc.toBlob(function (b) { saveCoverBlob(b); }, 'image/jpeg', 0.75);
+    else { try { saveCoverBlob(dataUrlToBlob(oc.toDataURL('image/jpeg', 0.75))); } catch (e) { toast('裁剪失败：' + e.message); } }
+  }
+  function showCoverPreview() {
+    $('coverCrop').hidden = true;
+    $('coverPreview').hidden = false;
+    var img = $('coverPreviewImg');
+    if (pendingCoverKey && coverUrls[pendingCoverKey]) img.src = coverUrls[pendingCoverKey];
+    var sz = pendingCoverBlob ? pendingCoverBlob.size : 0;
+    $('coverSize').textContent = sz ? Math.round(sz / 1024) + ' KB · 存在本机（不占书库空间）' : '';
+  }
+  function resetCoverForm(rec) {
+    pendingCoverKey = null; pendingCoverBlob = null;
+    cropImg = null; cropPts = null; cropDrag = -1;
+    $('coverCrop').hidden = true;
+    $('coverPreview').hidden = true;
+    $('coverPaste').hidden = false;
+    $('coverSize').textContent = '';
+    $('coverPreviewImg').removeAttribute('src');
+    if (rec && rec.coverId) {
+      pendingCoverKey = rec.coverId;
+      idbGet(rec.coverId).then(function (b) {
+        if (!b) return;
+        pendingCoverBlob = b;
+        if (!coverUrls[rec.coverId]) coverUrls[rec.coverId] = URL.createObjectURL(b);
+        showCoverPreview();
+      }).catch(function () {});
+    }
+  }
+  function deleteCover() {
+    if (pendingCoverKey) {
+      idbDel(pendingCoverKey);
+      if (coverUrls[pendingCoverKey]) { URL.revokeObjectURL(coverUrls[pendingCoverKey]); delete coverUrls[pendingCoverKey]; }
+    } else { toast('本来就没有封面'); return; }
+    pendingCoverKey = ''; pendingCoverBlob = null;
+    cropImg = null; cropPts = null;
+    $('coverPreview').hidden = true;
+    $('coverCrop').hidden = true;
+    $('coverPaste').hidden = false;
+    $('coverSize').textContent = '';
+    $('coverPreviewImg').removeAttribute('src');
+    toast('封面已移除（保存后生效）');
+  }
+  function loadCoverFile(file) {
+    if (!file) return;
+    if (!/^image\//.test(file.type || '')) { toast('请选一张图片文件'); return; }
+    var url = URL.createObjectURL(file);
+    var im = new Image();
+    im.onload = function () { beginCrop(im); };
+    im.onerror = function () { toast('这张图片打不开'); URL.revokeObjectURL(url); };
+    im.src = url;
+  }
+  /* 自动找四角：灰度 → Sobel 梯度 → 在上/下/左/右各找一个梯度最强的中线位置。
+     比不了专业扫描算法（对严重倾斜的拍法只能给个大致范围），所以永远保留手动微调。 */
+  function autoCoverCorners() {
+    if (!cropImg || !cropPts) { toast('先选一张图片'); return; }
+    try {
+      /* 必须从「干净的图」上取像素：cropCanvas 上已经画了半透明蒙版 + 青色边框 + 手柄，
+         直接读它会把默认裁剪框当成书本边缘（实测就返回了默认框，等于没识别）。 */
+      var c0 = $('cropCanvas'), w = c0.width, h = c0.height;
+      var clean = document.createElement('canvas');
+      clean.width = w; clean.height = h;
+      var cx2 = clean.getContext('2d', { willReadFrequently: true });
+      cx2.drawImage(cropImg, 0, 0, w, h);
+      var d = cx2.getImageData(0, 0, w, h).data;
+      var g = new Float32Array(w * h);
+      for (var i = 0; i < w * h; i++) g[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+      var mag = new Float32Array(w * h);
+      for (var y = 1; y < h - 1; y++) for (var x = 1; x < w - 1; x++) {
+        var i2 = y * w + x;
+        var gx = -g[i2 - w - 1] - 2 * g[i2 - 1] - g[i2 + w - 1] + g[i2 - w + 1] + 2 * g[i2 + 1] + g[i2 + w + 1];
+        var gy = -g[i2 - w - 1] - 2 * g[i2 - w] - g[i2 - w + 1] + g[i2 + w - 1] + 2 * g[i2 + w] + g[i2 + w + 1];
+        mag[i2] = Math.sqrt(gx * gx + gy * gy);
+      }
+      function midOf(list) {
+        if (list.length < 6) return null;
+        list.sort(function (a, b) { return a - b; });
+        return list[Math.floor(list.length / 2)];
+      }
+      /* 关键：从画面边缘往里找「第一条」强边，而不是找整段里最强的边。
+         反例（实测踩过）：书封上有一条高对比的横向装饰条，它比书本身的外轮廓还强，
+         按「最强」找会把书裁掉一大块。按「最外侧的强边」找才符合「书占满画面」的拍法。 */
+      var THR = 45;
+      function firstFrom(list) {
+        for (var i = 0; i < list.length; i++) if (list[i] > THR) return i;
+        return -1;
+      }
+      function rowEdge(y0, y1, fromTop) {
+        var out = [], span = Math.abs(y1 - y0);
+        for (var x = Math.round(w * 0.15); x < w * 0.85; x++) {
+          var hit = -1;
+          for (var s = 0; s < span; s++) {
+            var y = fromTop ? (y0 + s) : (y0 - s);
+            if (y > 0 && y < h - 1 && mag[y * w + x] > THR) { hit = y; break; }
+          }
+          if (hit >= 0) out.push(hit);
+        }
+        return midOf(out);
+      }
+      function colEdge(x0, x1, fromLeft) {
+        var out = [], span = Math.abs(x1 - x0);
+        for (var y = Math.round(h * 0.15); y < h * 0.85; y++) {
+          var hit = -1;
+          for (var s = 0; s < span; s++) {
+            var x = fromLeft ? (x0 + s) : (x0 - s);
+            if (x > 0 && x < w - 1 && mag[y * w + x] > THR) { hit = x; break; }
+          }
+          if (hit >= 0) out.push(hit);
+        }
+        return midOf(out);
+      }
+      var top = rowEdge(1, Math.round(h * 0.45), true), bot = rowEdge(h - 2, Math.round(h * 0.55), false);
+      var lf = colEdge(1, Math.round(w * 0.45), true), rt = colEdge(w - 2, Math.round(w * 0.55), false);
+      if (top == null || bot == null || lf == null || rt == null || bot - top < 20 || rt - lf < 20) {
+        toast('没找到明显的书本边缘，手动拖四个角吧');
+        return;
+      }
+      cropPts = [[lf, top], [rt, top], [rt, bot], [lf, bot]];
+      drawCrop();
+      toast('找到大致范围，请拖四角微调（斜着拍的会自动对不准）');
+    } catch (e) { toast('自动识别失败：' + e.message); }
+  }
+  function coverIdFor(id) {
+    if (pendingCoverKey !== null) return pendingCoverKey;
+    if (!id) return '';
+    var r = records.find(function (x) { return x.id === id; });
+    return (r && r.coverId) ? r.coverId : '';
+  }
+
+  /* ============ 阅读记录 ============ */
+  function tileHtml(num, label, cls) {
+    return '<div class="sum-tile"><div class="sum-num ' + (cls || '') + '">' + num +
+      '</div><div class="sum-label">' + esc(label) + '</div></div>';
+  }
+  function starHtml(n) {
+    n = +n || 0;
+    if (!n) return '';
+    return '<span class="stars" title="' + n + '/5">' + '★'.repeat(n) + '<i>' + '☆'.repeat(5 - n) + '</i></span>';
+  }
+  function renderReading() {
+    var el = $('readList');
+    if (!el) return;
+    var done = records.filter(function (r) { return r.readStatus === '已读'; });
+    var doing = records.filter(function (r) { return r.readStatus === '在读'; });
+    var rated = records.filter(function (r) { return trim(r.rating); });
+    var sum = 0;
+    rated.forEach(function (r) { sum += (+r.rating || 0); });
+    var ym = new Date().getFullYear() + '/' + (new Date().getMonth() + 1) + '/';
+    var thisMonth = done.filter(function (r) { return trim(r.finishDate).indexOf(ym) === 0; }).length;
+    if ($('readTop')) {
+      $('readTop').innerHTML = tileHtml(done.length, '已读', 'green') + tileHtml(doing.length, '在读', 'orange') +
+        tileHtml(thisMonth, '本月读完', 'blue') + tileHtml(rated.length ? (sum / rated.length).toFixed(1) : '—', '平均评分');
+    }
+    var list = done.concat(doing).sort(function (a, b) {
+      return (dateVal(b.finishDate) - dateVal(a.finishDate)) ||
+        trim(a.title).localeCompare(trim(b.title));
+    });
+    el.innerHTML = list.length ? list.map(function (r) {
+      return '<div class="read-row" data-read="' + r.id + '">' +
+        '<div class="rr-main">' +
+        '<a class="rr-title" data-gr="' + r.id + '" href="' + esc(grUrlFor(r)) + '" target="_blank" rel="noopener">' +
+        esc(r.title || '（无书名）') + '</a>' +
+        (trim(r.author) ? '<div class="rr-author">' + esc(r.author) + '</div>' : '') +
+        '<div class="rr-meta">' +
+        '<span class="tag read">' + esc(r.readStatus) + '</span>' +
+        (trim(r.genre) ? '<span class="tag genre">' + esc(r.genre) + '</span>' : '') +
+        (trim(r.series) ? '<span class="tag series">' + esc(r.series) + '</span>' : '') +
+        (trim(r.finishDate) ? '<span class="tag date">读完 ' + esc(r.finishDate) + '</span>' : '') +
+        '</div></div>' + starHtml(r.rating) + '</div>';
+    }).join('') : '<p class="read-empty">还没有阅读记录 —— 在书的编辑页把「阅读状态」改成「在读」或「已读」，就会出现在这里。</p>';
+  }
 
   /* ============================================================
      与 booksandspreadsheets.com 同步
@@ -2272,6 +3074,8 @@
     $('sAmount').value = s ? s.amount : '';
     fillCurSel($('sCurrency'), s ? s.currency : 'GBP');
     $('sActive').checked = s ? !!s.active : true;
+    if ($('sSkipTotal')) $('sSkipTotal').value = (s && s.skipTotal !== '' && s.skipTotal != null) ? s.skipTotal : '';
+    if ($('sSkipUsed')) $('sSkipUsed').value = s ? (parseInt(s.skipUsed, 10) || 0) : 0;
     $('sNote').value = s ? s.note : '';
     fillBsSourceSel($('sBsSlug'), s ? s.bsSlug : '', s ? s.name : '');
     openModal('subModal');
@@ -2293,9 +3097,12 @@
   /* ---- 汇率 ---- */
   function openFxForm() {
     $('fxList').innerHTML = CUR.filter(function (c) { return c[0] !== 'CNY'; }).map(function (c) {
-      return '<label class="fx-row"><span>' + c[1] + ' ' + c[2] + '　1 ' + c[0] + ' = ? 人民币</span>' +
+      return '<label class="fx-row"><span>' + c[1] + c[2] + '　1 ' + c[0] + ' = ? 人民币</span>' +
         '<input type="number" step="0.0001" inputmode="decimal" data-cur="' + c[0] + '" value="' + fx[c[0]] + '"></label>';
     }).join('');
+    if ($('fxUpdated')) {
+      $('fxUpdated').textContent = fxAt ? '当前汇率来自：' + fxAt : '当前是程序内置的参考值，建议点「联网更新汇率」';
+    }
     openModal('fxModal');
   }
   function saveFxForm() {
@@ -2303,7 +3110,8 @@
       var v = parseFloat(inp.value);
       if (!isNaN(v) && v > 0) fx[inp.dataset.cur] = v;
     });
-    saveFx(); closeModal('fxModal'); render(); renderSubs();
+    saveFx('手动设置 · ' + new Date().toLocaleDateString('en-CA'));
+    closeModal('fxModal'); render(); renderSubs();
     toast('汇率已保存，合计和¥换算都跟着更新');
   }
   function updateFxOnline() {
@@ -2327,7 +3135,7 @@
           if (typeof per === 'number' && per > 0) { fx[c[0]] = 1 / per; n++; }
         });
         if (!n) throw new Error('none');
-        saveFx();
+        saveFx('联网更新 · ' + new Date().toLocaleDateString('en-CA'));
         done(true, '已用最新汇率更新 ' + n + ' 个币种');
       })
       .catch(function () { done(false, '联网更新失败（不影响使用，可以手动填汇率）'); });
@@ -2394,14 +3202,17 @@
   /* ---- 视图切换 ---- */
   var view = 'books';
   function setView(v) {
-    view = v === 'subs' ? 'subs' : 'books';
+    view = (v === 'subs' || v === 'read') ? v : 'books';
     document.body.classList.toggle('view-subs', view === 'subs');
+    document.body.classList.toggle('view-read', view === 'read');
     if ($('tabRow')) {
       $('tabRow').querySelectorAll('.tab').forEach(function (t) {
         t.classList.toggle('active', t.dataset.view === view);
       });
     }
-    if (view === 'subs') renderSubs(); else render();
+    if (view === 'subs') renderSubs();
+    else if (view === 'read') renderReading();
+    else render();
     window.scrollTo(0, 0);
   }
 
@@ -2443,6 +3254,11 @@
       currency: $('sCurrency').value, active: $('sActive').checked, note: trim($('sNote').value),
       bsSlug: $('sBsSlug') ? $('sBsSlug').value : (editingSub ? (editingSub.bsSlug || '') : '')
     };
+    var _st = trim($('sSkipTotal') ? $('sSkipTotal').value : '');
+    data.skipTotal = _st === '' ? '' : (parseInt(_st, 10) || '');
+    var _su = trim($('sSkipUsed') ? $('sSkipUsed').value : '');
+    data.skipUsed = _su === '' ? 0 : Math.max(0, parseInt(_su, 10) || 0);
+    data.skipYear = String(new Date().getFullYear());
     if (editingSub) Object.keys(data).forEach(function (k) { editingSub[k] = data[k]; });
     else { data.id = uid(); data.boxes = []; subs.push(data); }
     saveSubs(); closeModal('subModal'); renderSubs(); render();

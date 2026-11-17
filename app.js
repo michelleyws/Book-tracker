@@ -501,6 +501,8 @@
   if ($('coverFile')) {
     $('coverFile').addEventListener('change', function () { var f = this.files[0]; this.value = ''; loadCoverFile(f); });
   }
+  if ($('sName')) $('sName').addEventListener('input', fillSkipHint);
+  if ($('sBsSlug')) $('sBsSlug').addEventListener('change', fillSkipHint);
   if ($('btnCoverPick')) $('btnCoverPick').onclick = function () { $('coverFile').click(); };
   if ($('btnCoverDel')) $('btnCoverDel').onclick = deleteCover;
   if ($('btnCropApply')) $('btnCropApply').onclick = applyCover;
@@ -2068,6 +2070,33 @@
     return '';
   }
 
+  /* ---- 各家 bookbox 的年度 Skip 配额（数字） ----
+     来源：booksandspreadsheets.com 的 sc1SkipPolicy 字段（原文由 sync_bs.py 每天抓，
+     界面上会显示、并随官网更新）；Eldritch King 该站未收录（245 家已核），
+     数字由用户提供。只在订阅自己没填配额时套用 —— 用户一填就以用户填的为准。 */
+  var SKIP_PRESET = [
+    { re: /broken\s*binding/i, total: 9, boxes: 12,
+      note: '按月付 12 期/年，可跳 9 期。官网 sc1SkipPolicy 写的是「3 skips allowed per year」，备注补了一句「2026 转月度盒子后 9 skips」——按月付算取 9。' },
+    { re: /bookish\s*[&＆]?\s*(?:and\s+)?spice/i, total: 3, boxes: 6,
+      note: '双月刊 6 期/年，可跳 3 期（且不能连续跳超过 3 期）。官网 sc1SkipPolicy：3 skips allowed per year; no skipping more than 3 boxes in a row。' },
+    { re: /eldritch/i, total: 1, boxes: 6,
+      note: '6 期/年，可跳 1 期（booksandspreadsheets.com 未收录该商家，数字为手工填写）。' }
+  ];
+  function skipPresetFor(name) {
+    var n = trim(name);
+    for (var i = 0; i < SKIP_PRESET.length; i++) if (SKIP_PRESET[i].re.test(n)) return SKIP_PRESET[i];
+    return null;
+  }
+  /* 官网原文优先（随同步自动更新），没有就退回预设里的说明 */
+  function skipPolicyText(s) {
+    var c = (s && trim(s.bsSlug)) ? bsCompany(s.bsSlug) : null;
+    var t = c ? trim(c.skipPolicy) : '';
+    var extra = c ? trim(c.note) : '';
+    if (extra && /skip/i.test(extra) && extra.indexOf(t) < 0) t = t ? t + '；' + extra : extra;
+    if (!t) { var pre = skipPresetFor(s && s.name); t = pre ? pre.note : ''; }
+    return t;
+  }
+
   function loadSubs() {
     var arr = null;
     try { var raw = localStorage.getItem(LS_SUBS); arr = raw ? JSON.parse(raw) : null; } catch (e) { arr = null; }
@@ -2090,10 +2119,23 @@
          跨年自动把「已用」清零（只在已经记过年份之后才动，避免把手工填的次数抹掉）。 */
       if (typeof s.skipTotal !== 'number' && s.skipTotal !== '') s.skipTotal = '';
       if (typeof s.skipUsed !== 'number') s.skipUsed = +s.skipUsed || 0;
+      /* 自己没设过配额（skipAuto 不是 false）就按预设填一个，省得每次手填 */
+      var _pre = skipPresetFor(s.name);
+      if (_pre) {
+        if (s.skipBoxes == null || s.skipBoxes === '') s.skipBoxes = _pre.boxes;
+        if (s.skipAuto !== false && (s.skipTotal === '' || s.skipTotal == null)) {
+          s.skipTotal = _pre.total;
+          s.skipYear = s.skipYear || String(new Date().getFullYear());
+        }
+      }
       var _y = String(new Date().getFullYear());
       if (s.skipYear && s.skipYear !== _y) { s.skipYear = _y; s.skipUsed = 0; }
       if (!s.skipYear) s.skipYear = _y;
       s.boxes.forEach(function (b) {
+        /* 期次的数组字段规范成数组：老数据 / 被合并进来的对象可能没有，
+           缺了会让订阅页整页崩（提醒条那段会取 .length） */
+        if (!Array.isArray(b.books)) b.books = [];
+        if (!Array.isArray(b.bsBooks)) b.bsBooks = [];
         if (!b.id) b.id = uid();
         if (!Array.isArray(b.books)) b.books = [];
         if (!b.status) b.status = 'pending';
@@ -2167,8 +2209,16 @@
   function quotaText(s) {
     var q = skipQuota(s);
     if (!q) return '';
-    return 'Skip ' + q.used + '/' + q.total + (q.left <= 0 ? '（已用完）' : '（剩 ' + q.left + '）');
+    var bx = parseInt(s.skipBoxes, 10);
+    return 'Skip ' + q.used + '/' + q.total + (q.left <= 0 ? '（已用完）' : '（剩 ' + q.left + '）') +
+      (bx > 0 ? ' · ' + bx + ' 期/年' : '');
   }
+  /* 期次上的 books / bsBooks 一律当数组用。
+     老数据或被合并进来的对象可能没有这两个字段，一旦缺了，
+     渲染订阅页时取 .length 会直接抛异常、整页白掉（这里真踩过），
+     所以统一走这两个取值器，顺手补齐。 */
+  function booksOf(b) { if (!Array.isArray(b.books)) b.books = []; return b.books; }
+  function bsBooksOf(b) { if (!Array.isArray(b.bsBooks)) b.bsBooks = []; return b.bsBooks; }
   function makeBox(s, when) {
     var d = when || today0();
     var last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
@@ -2190,8 +2240,9 @@
       price: trim(rec.price), currency: curOf(rec)
     };
     var i;
-    for (i = 0; i < b.books.length; i++) if (b.books[i].recId === rec.id) break;
-    if (i < b.books.length) b.books[i] = entry; else b.books.push(entry);
+    var _bk = booksOf(b);
+    for (i = 0; i < _bk.length; i++) if (_bk[i].recId === rec.id) break;
+    if (i < _bk.length) _bk[i] = entry; else _bk.push(entry);
     saveSubs();
     return true;
   }
@@ -2226,8 +2277,9 @@
     var stText = b.status === 'charged' ? '已扣款' : b.status === 'skipped' ? '已跳过'
       : b.status === 'cancelled' ? '已取消' : '待扣款';
     var amt = trim(b.amount) ? curSymbol(b.currency || s.currency) + b.amount : '';
-    var books = b.books.length
-      ? b.books.map(function (e) { return boxBookHtml(s, b, e); }).join('')
+    var _bb = booksOf(b);
+    var books = _bb.length
+      ? _bb.map(function (e) { return boxBookHtml(s, b, e); }).join('')
       : '<p class="box-empty">本期书目还没登记 —— 点「＋ 加书」，作者 / 系列 / Goodreads 链接和书库一样能自动补全。</p>';
     return '<div class="box-card ' + b.status + '">' +
       '<div class="box-head"><span class="box-period">' + esc(periodLabel(b.period)) + '</span>' +
@@ -2248,6 +2300,17 @@
       '<button class="btn btn-small" type="button" data-act="editbox" data-sub="' + s.id + '" data-box="' + b.id + '">编辑</button>' +
       '</div></div>';
   }
+  /* 卡片要显示的官网规则：同步过的用存下来的，没同步过就直接从同源 bs-subs.json 现查
+     —— 这样不用点「同步官网数据」也能看到扣款日和 skip 政策 */
+  function subBsInfo(s) {
+    if (s.bsInfo) return s.bsInfo;
+    var sl = trim(s.bsSlug) || bsDefaultFor(s.name);
+    var c = sl ? bsCompany(sl) : null;
+    if (!c) return null;
+    return { name: c.name, slug: c.slug, url: '', renews: c.renews, skipDeadline: c.skipDeadline,
+      skipPolicy: c.skipPolicy, note: c.note, cost: c.cost, ships: c.ships,
+      website: c.website, at: '' };
+  }
   function subCardHtml(s) {
     var n = nextCharge(s), badge;
     if (!s.active) badge = '<span class="sub-badge off">已停用</span>';
@@ -2265,11 +2328,11 @@
       meta.push('<span class="quota' + (qs.left <= 0 ? ' out' : qs.left <= 1 ? ' tight' : '') + '">' +
         esc(quotaText(s)) + '</span>');
     }
-    var bsLine = '';
-    if (s.bsInfo) {
-      bsLine = '<div class="bs-line">📋 官网：' + esc(bsRulesText(s.bsInfo).slice(0, 200)) +
-        (s.bsInfo.url ? '　<a href="' + esc(s.bsInfo.url) + '" target="_blank" rel="noopener">来源页</a>' : '') +
-        (s.bsInfo.at ? '<span class="bs-at">同步于 ' + esc(s.bsInfo.at.slice(0, 10)) + '</span>' : '') + '</div>';
+    var bsLine = '', _bi = subBsInfo(s);
+    if (_bi) {
+      bsLine = '<div class="bs-line">📋 官网：' + esc(bsRulesText(_bi).slice(0, 260)) +
+        (_bi.url ? '　<a href="' + esc(_bi.url) + '" target="_blank" rel="noopener">来源页</a>' : '') +
+        (_bi.at ? '<span class="bs-at">同步于 ' + esc(_bi.at.slice(0, 10)) + '</span>' : '') + '</div>';
     }
     var boxes = s.boxes.slice().sort(function (a, b) { return dateVal(b.chargeDate) - dateVal(a.chargeDate); });
     return '<div class="sub-card">' +
@@ -2328,7 +2391,7 @@
         }).join('') + alerts.slice(0, 4).map(function (a) {
           return '<div class="alert-row' + (a.gap < 0 ? ' late' : '') + '">' +
             (a.gap < 0 ? '⚠️ ' : '⏰ ') + '<b>' + esc(a.s.name) + '</b> ' + cnDate(a.d) + ' 扣款 · ' + gapText(a.gap) +
-            (a.b ? (a.b.books.length ? ' · 已登记书目 ' + a.b.books.length + ' 本' : ' · 书目还没登记')
+            (a.b ? ((a.b.books && a.b.books.length) ? ' · 已登记书目 ' + a.b.books.length + ' 本' : ' · 书目还没登记')
                  : ' <button class="btn btn-small" type="button" data-act="newbox" data-sub="' + a.s.id +
                    '" data-when="' + ymd(a.d) + '">建本期</button>') + '</div>';
         }).join('');
@@ -2419,7 +2482,7 @@
   }
   function unbindBook(s, b, recId) {
     if (!s || !b) return;
-    b.books = b.books.filter(function (e) { return e.recId !== recId; });
+    b.books = booksOf(b).filter(function (e) { return e.recId !== recId; });
     saveSubs(); renderSubs(); toast('已从本期移除（书库记录还在）');
   }
   function deleteBox(s, b) {
@@ -2726,6 +2789,17 @@
     var sz = pendingCoverBlob ? pendingCoverBlob.size : 0;
     $('coverSize').textContent = sz ? Math.round(sz / 1024) + ' KB · 存在本机（不占书库空间）' : '';
   }
+  /* 编辑订阅时把官网的 skip 政策摆出来，数字给出建议 */
+  function fillSkipHint() {
+    var el = $('skipPresetHint');
+    if (!el) return;
+    var nm = $('sName') ? trim($('sName').value) : '';
+    var txt = skipPolicyText({ name: nm, bsSlug: $('sBsSlug') ? trim($('sBsSlug').value) : '' });
+    var pre = skipPresetFor(nm);
+    if (!txt && !pre) { el.textContent = '这家没查到官方 skip 政策，数字自己填就行。'; return; }
+    el.textContent = (pre ? '建议：' + pre.total + ' 期/年（' + pre.boxes + ' 期里可跳 ' + pre.total + ' 期）　' : '') +
+      (txt ? '官网原文：' + txt : '');
+  }
   function resetCoverForm(rec) {
     pendingCoverKey = null; pendingCoverBlob = null;
     cropImg = null; cropPts = null; cropDrag = -1;
@@ -2936,6 +3010,7 @@
     var t = [];
     if (trim(c.renews)) t.push('扣款：' + trim(c.renews));
     if (trim(c.skipDeadline)) t.push('最后可 skip：' + trim(c.skipDeadline));
+    if (trim(c.skipPolicy)) t.push('可跳：' + trim(c.skipPolicy));
     if (trim(c.cost)) t.push('费用：' + trim(c.cost));
     if (trim(c.ships)) t.push('发货：' + trim(c.ships));
     return t.join('　·　');
@@ -2989,7 +3064,8 @@
         applied++;
         s.bsInfo = {
           name: c.name, slug: c.slug, url: c.url || '', renews: c.renews,
-          skipDeadline: c.skipDeadline, cost: c.cost, ships: c.ships,
+          skipDeadline: c.skipDeadline, skipPolicy: c.skipPolicy, note: c.note,
+          cost: c.cost, ships: c.ships,
           website: c.website, at: bsFetchedAt
         };
         /* 只填本地没设的，绝不覆盖用户自己改过的 */
@@ -3076,6 +3152,7 @@
     $('sActive').checked = s ? !!s.active : true;
     if ($('sSkipTotal')) $('sSkipTotal').value = (s && s.skipTotal !== '' && s.skipTotal != null) ? s.skipTotal : '';
     if ($('sSkipUsed')) $('sSkipUsed').value = s ? (parseInt(s.skipUsed, 10) || 0) : 0;
+    fillSkipHint();
     $('sNote').value = s ? s.note : '';
     fillBsSourceSel($('sBsSlug'), s ? s.bsSlug : '', s ? s.name : '');
     openModal('subModal');
@@ -3166,7 +3243,7 @@
         L.push('END:VEVENT');
       }
       s.boxes.forEach(function (b) {
-        if (!b.books.length) return;
+        if (!booksOf(b).length) return;
         var d = parseYmd(b.chargeDate);
         if (!d) return;
         L.push('BEGIN:VEVENT', 'UID:box-' + b.id + '@book-tracker', 'DTSTAMP:' + stamp,
@@ -3259,6 +3336,7 @@
     var _su = trim($('sSkipUsed') ? $('sSkipUsed').value : '');
     data.skipUsed = _su === '' ? 0 : Math.max(0, parseInt(_su, 10) || 0);
     data.skipYear = String(new Date().getFullYear());
+    data.skipAuto = _st === '';
     if (editingSub) Object.keys(data).forEach(function (k) { editingSub[k] = data[k]; });
     else { data.id = uid(); data.boxes = []; subs.push(data); }
     saveSubs(); closeModal('subModal'); renderSubs(); render();
@@ -3277,6 +3355,12 @@
     toast('已保存 ' + periodLabel(b.period) + ' 期');
   };
   if ($('fCurrency')) fillCurSel($('fCurrency'), 'CNY');
+
+  /* 静默读一次同源 bs-subs.json：只为把官网的扣款日 / skip 政策显示出来，不改任何用户数据。
+     真正「套用官网数据」仍然只在用户点「同步官网数据」时才执行。失败就静默跳过。 */
+  try {
+    bsLoad().then(function () { renderSubs(); if (view === 'subs') render(); }).catch(function () {});
+  } catch (e) {}
 
   render();
 })();

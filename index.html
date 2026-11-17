@@ -369,7 +369,7 @@
       </div>
       <div class="field-pair">
         <label class="field">
-          <span>年度 Skip 配额（几本盒子各自不同，没有就留空）</span>
+          <span>年度 Skip 配额（留空=自动用官方数字）</span>
           <input type="number" id="sSkipTotal" min="0" step="1" inputmode="numeric" placeholder="如 6">
         </label>
         <label class="field">
@@ -377,7 +377,8 @@
           <input type="number" id="sSkipUsed" min="0" step="1" inputmode="numeric" value="0">
         </label>
       </div>
-      <p class="hint-plain">填了配额之后：每点一次「跳过这期」自动 +1，改回其他状态会 −1；快用完（剩 1 次）会变黄提醒，用完了变红提醒。跨年会自动把「已用」清零。</p>
+      <p class="hint-plain" id="skipPresetHint"></p>
+      <p class="hint-plain">配额留空就会自动套用官方数字（来源：booksandspreadsheets.com 的 skip policy 字段，每天同步）。填了以后以你填的为准。每点一次「跳过这期」自动 +1，改回其他状态会 −1；快用完（剩 1 次）变黄提醒，用完变红提醒；跨年自动把「已用」清零。</p>
       <label class="field">
         <span>备注（可选）</span>
         <textarea id="sNote" rows="2" placeholder="如：3 个月起订 / 提前两周爆料书单"></textarea>

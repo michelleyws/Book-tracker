@@ -621,56 +621,92 @@
   }
   /* 解析一个书页的原始 HTML，一次把四样都取出来，避免为一本书发多次请求：
      书名 / 系列名 / 序号、系列页链接、作者页链接、作者名。 */
-  function parseBookPage(html) {
+  function parseBookPage(html, authorHint) {
     var out = { title: '', series: '', seriesNum: '', author: '', authorUrl: '', seriesUrl: '', parentSeries: [] };
-    /* 1) 系列页链接 —— 实测 Dune 书页里有 2 个（主系列 + 母系列 Dune Universe），第一个是主系列 */
+    /* 有的返回（Next.js 流式载荷）里引号被转义成 \" ，先还原，否则正则一条都匹配不到 */
+    if (html.indexOf('\\"') !== -1) html = html.replace(/\\"/g, '"');
+    /* 1) 系列页链接：实测第一个就是主系列（Dune 页第二个是母系列 Dune Universe）。
+       顺便从标题区那条「Book N in the X series」的 aria-label 拿系列名和序号，
+       比只依赖 og:title 多一层保障。 */
     var all = html.match(/\/series\/\d+[a-z0-9-]*/gi) || [];
     var uniq = all.filter(function (v, i) { return all.indexOf(v) === i; });
     if (uniq.length) {
-      out.seriesUrl = GR_SITE + uniq[0];
-      out.parentSeries = uniq.slice(1).map(function (u) { return GR_SITE + u; });
+      out.seriesUrl = uniq[0].indexOf('http') === 0 ? uniq[0] : GR_SITE + uniq[0];
+      out.parentSeries = uniq.slice(1).map(function (u) { return u.indexOf('http') === 0 ? u : GR_SITE + u; });
     }
-    /* 2) 作者页链接 / 作者名 —— 优先 ld+json（权威），退化到页面里第一个 /author/show 链接 */
-    var ld = html.match(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/i);
-    if (ld) {
-      try {
-        var j = JSON.parse(ld[1]);
-        var a = j && j.author;
-        if (a && !a.length) a = [a];
-        if (a && a[0]) {
-          if (a[0].url) out.authorUrl = a[0].url;
-          if (a[0].name) out.author = a[0].name;
-        }
-      } catch (e) { /* 落到下面的兜底 */ }
+    var sl = html.match(/aria-label="Book[^"]{0,40}?in the ([^"]{1,80}?) series"/i);
+    if (sl) {
+      out.series = decodeEntities(sl[1]).trim();
+      var sn = html.match(/aria-label="Book\s*([\d.]+)[^"]{0,40}?in the [^"]{1,80}? series"/i);
+      if (sn) out.seriesNum = sn[1];
+    }
+    /* 2) 作者 —— 就用页面上「点作者名能进去」的那个链接（绝对地址 + 名字文本）。
+       实测结构：<a class="ContributorLink" href="…/author/show/{id}.{Name}">
+                   <span class="ContributorLink__name" data-testid="name">作者名</span>
+                   <span class="ContributorLink__badge">…svg 徽章…</span></a>
+       所以 href 和 data-testid="name" 一起抓，既拿到链接又拿到名字。
+       别写成「<a> 到 </a> 之间不超过 N 个字符」——作者名后面挂着 Goodreads Author
+       的 svg 徽章，内层很长，够不到收尾标签就整条漏掉，只剩页面底部的「相似作者」
+       能匹配上，作者会被填成别人（这个坑踩过）。 */
+
+    var cands = [], m;
+    var dre = /<a[^>]*?href="([^"]*\/author\/show\/\d+[^"]*)"[^>]*>\s*<span[^>]*data-testid="name"[^>]*>([^<]*)<\/span>/gi;
+    while ((m = dre.exec(html))) {
+      cands.push({
+        url: m[1].indexOf('http') === 0 ? m[1] : GR_SITE + m[1],
+        text: decodeEntities(m[2]).replace(/\s+/g, ' ').trim()
+      });
+    }
+    var pick = null, i;
+    var hint = authorHint ? normTitle(authorHint) : '';
+    if (hint) {
+      for (i = 0; i < cands.length; i++) {
+        var t = normTitle(cands[i].text);
+        if (t && (t === hint || t.indexOf(hint) !== -1 || hint.indexOf(t) !== -1)) { pick = cands[i]; break; }
+      }
+    }
+    /* 对不上名字（或本来没名字可对）就取第一个：标题区的作者链接排在文档最前面 */
+    if (!pick && cands.length) pick = cands[0];
+    if (pick) { out.authorUrl = pick.url; out.author = pick.text; }
+    if (!out.authorUrl) {
+      var ld = html.match(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/i);
+      if (ld) {
+        try {
+          var j = JSON.parse(ld[1]);
+          var a = j && j.author;
+          if (a && !a.length) a = [a];
+          if (a && a[0]) { if (a[0].url) out.authorUrl = a[0].url; if (a[0].name) out.author = a[0].name; }
+        } catch (e) { /* 交给下面的兜底 */ }
+      }
     }
     if (!out.authorUrl) {
       var am = html.match(/\/author\/show\/\d+[.\-]?[A-Za-z0-9_-]*/);
       if (am) out.authorUrl = GR_SITE + am[0];
     }
-    /* 3) 书名 / 系列名 / 序号 —— og:title 形如 "Dune (Dune, #1)" */
+    /* 3) 书名 / 系列名 / 序号（og:title 形如 "Dune (Dune, #1)"） */
     var mt = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i);
     if (mt) {
       var og = decodeEntities(mt[1]).trim();
       var info = parseBookTextLine(og);
       out.title = info.title || og;
-      out.series = info.series;
-      out.seriesNum = info.seriesNum;
+      if (!out.series) out.series = info.series;
+      if (!out.seriesNum) out.seriesNum = info.seriesNum;
     }
     return out;
   }
-  function grBookPageInfo(bookUrl) {
+  function grBookPageInfo(bookUrl, authorHint) {
     return grFetchHtml(bookUrl).then(function (html) {
-      var info = parseBookPage(html);
+      var info = parseBookPage(html, authorHint);
       if (!info.title && !info.seriesUrl && !info.authorUrl) throw new Error('parse-failed');
       return info;
     });
   }
   /* 同一个书页在一次操作里可能被多个地方需要，缓存住，保证只发一次请求 */
   var pageCache = {};
-  function grBookPageCached(bookUrl) {
+  function grBookPageCached(bookUrl, authorHint) {
     var u = trim(bookUrl);
     if (!pageCache[u]) {
-      pageCache[u] = grBookPageInfo(u).catch(function (e) { delete pageCache[u]; throw e; });
+      pageCache[u] = grBookPageInfo(u, authorHint).catch(function (e) { delete pageCache[u]; throw e; });
     }
     return pageCache[u];
   }
@@ -741,9 +777,10 @@
     }
     /* 顺手补作者页链接 —— 导出 Excel 时「作者」列也要有超链接。
        走页面缓存，所以即使下面还要抓同一个书页，整轮也总共只发一次请求。 */
-    if (hit.url && !trim($('fGrAuthorUrlH').value)) {
-      grBookPageCached(hit.url).then(function (p2) {
-        if (p2.authorUrl && !trim($('fGrAuthorUrlH').value)) $('fGrAuthorUrlH').value = p2.authorUrl;
+    if (hit.url) {
+      grBookPageCached(hit.url, hit.author || trim($('fAuthor').value)).then(function (p2) {
+        /* 书页上那个可点击的作者链接最权威，直接覆盖搜索结果给的（可能是同名不同条目） */
+        if (p2.authorUrl) $('fGrAuthorUrlH').value = p2.authorUrl;
         if (p2.author && !trim($('fAuthor').value)) $('fAuthor').value = p2.author;
       }).catch(function () {});
     }
@@ -859,7 +896,7 @@
         return;
       }
       var r = batch[i++];
-      grBookPageCached(trim(r.grBookUrl) || trim(r.goodreadsUrl)).then(function (p) {
+      grBookPageCached(trim(r.grBookUrl) || trim(r.goodreadsUrl), trim(r.author)).then(function (p) {
         if (p.seriesUrl) r.grSeriesUrl = p.seriesUrl;
         if (p.authorUrl) r.grAuthorUrl = p.authorUrl;
         if (!trim(r.series) && p.series) r.series = p.series;
@@ -1024,7 +1061,7 @@
     var q = titleGuess || trim($('fTitle').value);
     var isBook = !!(url && /goodreads\.com\/book\/show\//i.test(url));
     var bookP = isBook
-      ? grBookPageCached(url).then(function (p) {
+      ? grBookPageCached(url, trim($('fAuthor').value)).then(function (p) {
           return { title: p.title, author: p.author, series: p.series, seriesNum: p.seriesNum,
                    seriesUrl: p.seriesUrl, authorUrl: p.authorUrl };
         }).catch(function () { return null; })

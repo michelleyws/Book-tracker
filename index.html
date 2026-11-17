@@ -163,10 +163,10 @@
     <div class="sheet-body">
       <h2>设置</h2>
       <label class="field">
-        <span>Jina AI API Key（可选，让「获取」稳定读取 Goodreads）</span>
+        <span>Jina AI API Key（必填 · 不填则无法联网查询）</span>
         <input type="text" id="grKeyInput" placeholder="jina_xxxxxxxxxxxxxxxx" autocomplete="off">
       </label>
-      <p class="form-tip">免费申请（约 1 分钟）：浏览器打开 jina.ai → 用 Google/GitHub 账号登录 → 进控制台复制 API Key → 粘贴到这里保存。填好后不开 VPN 也能用「获取」查 Goodreads，免费额度每月约可查询 30-50 本书。</p>
+      <p class="form-tip">必填：没有有效 Key 时接口返回 401，所有联网查询（作者/系列/系列书目）都会失败。<br>免费申请（约 1 分钟）：浏览器打开 jina.ai → 用 Google/GitHub 账号登录 → 进控制台复制 API Key → 粘贴到这里保存。填好后不开 VPN 也能查 Goodreads，免费额度每月约可查询 30-50 本书。</p>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" id="btnSettingsCancel">取消</button>
         <button type="button" class="btn btn-primary" id="btnSettingsSave">保存</button>

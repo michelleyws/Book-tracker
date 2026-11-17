@@ -380,12 +380,34 @@
     if (!key) return Promise.reject(new Error('no-key'));
     var target = 'https://r.jina.ai/' + url;
     var ctrl = new AbortController();
-    var timer = setTimeout(function () { ctrl.abort(); }, 45000);
+    var timer = setTimeout(function () { ctrl.abort(); }, 60000);
     return fetch(target, { signal: ctrl.signal, headers: { 'Authorization': 'Bearer ' + key } })
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
       .then(function (t) {
         clearTimeout(timer);
         if (!t || t.length < 200) throw new Error('empty');
+        return t;
+      })
+      .catch(function (e) { clearTimeout(timer); throw e; });
+  }
+  /* 抓「原始 HTML」。Jina 默认把页面转成 markdown，会丢掉内嵌 JSON、系列链接和相对路径，
+     所以凡是需要读页面结构的场景（书页 / 系列页）一律走这里，带 X-Return-Format: html。 */
+  function grFetchHtml(url) {
+    var key = trim(localStorage.getItem('grProxyKey') || '');
+    if (!key) return Promise.reject(new Error('no-key'));
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 60000);
+    return fetch('https://r.jina.ai/' + url, {
+      signal: ctrl.signal,
+      headers: {
+        'Authorization': 'Bearer ' + key,
+        'X-Return-Format': 'html'
+      }
+    })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+      .then(function (t) {
+        clearTimeout(timer);
+        if (!t || t.length < 500) throw new Error('empty');
         return t;
       })
       .catch(function (e) { clearTimeout(timer); throw e; });
@@ -441,21 +463,102 @@
       }).filter(function (b) { return b.title; });
     });
   }
-  /* 系列页 → 按顺序的书单（标题+链接） */
+  /* ---------- 页面结构解析工具（都基于原始 HTML） ---------- */
+  function decodeEntities(s) {
+    return String(s == null ? '' : s)
+      .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  }
+  /* 系列页 → 书单。首选页面内嵌的结构化 JSON（data-react-props），
+     里面直接有 bookId / bookTitleBare / title(含系列名和序号) / 评分，
+     比用正则去抠链接可靠得多 —— 实测 39 个链接里有 16 个不带 slug，靠 slug 猜书名会错。
+     万一取不到再退回「链接路径正则」，最后才由调用方退到 DDG。 */
   function grSeriesBooks(seriesUrl) {
-    return grFetch(seriesUrl).then(function (t) {
-      var items = [], seen = {};
-      var re = /\[([^\]]+)\]\(https:\/\/www\.goodreads\.com\/book\/show\/(\d+)(-[a-z0-9-]+)?[^)]*\)/gi;
-      var m;
-      while ((m = re.exec(t))) {
-        var title = m[1].replace(/\*\*/g, '').trim();
-        if (!title || seen[title]) continue;
-        seen[title] = 1;
-        items.push({ title: title, url: GR_SITE + '/book/show/' + m[2] + (m[3] || '') });
+    if (!seriesUrl) return Promise.reject(new Error('no url'));
+    return grFetchHtml(seriesUrl).then(function (html) {
+      var items = [], seen = {}, p, m;
+      /* 路径一（首选）：把页面上所有 data-react-props 块「合并」，按 bookId 去重。
+         Goodreads 是分块渲染的：实测一个系列页有 9 个 props 块，含 series 的 2 个
+         分别只有 2 本和 33 本，只取第一块会漏掉大半。合并后 35 本，正好等于页面上
+         标注的 "35 total works"，而且每本都带真实书名（含系列名和序号）。 */
+      var blocks = html.match(/data-react-props="[^"]*"/gi) || [];
+      for (p = 0; p < blocks.length; p++) {
+        var mm = blocks[p].match(/data-react-props="([^"]*)"/i);
+        if (!mm) continue;
+        var data;
+        try { data = JSON.parse(decodeEntities(mm[1])); } catch (e) { continue; }
+        var rows = data.series || data.books;
+        if (!rows || !rows.length) continue;
+        for (var r = 0; r < rows.length; r++) {
+          var b = rows[r].book || rows[r];
+          if (!b || !b.bookId) continue;
+          if (seen[b.bookId]) continue;
+          seen[b.bookId] = 1;
+          var raw = String(b.bookUrl || ('/book/show/' + b.bookId));
+          items.push({
+            title: b.bookTitleBare || b.title || '',
+            url: GR_SITE + (raw.indexOf('http') === 0 ? raw.replace(/^https?:\/\/[^/]+/, '') : raw)
+          });
+        }
+      }
+      /* 结构化块拿到了就以它为准——它就是「这个系列的书单」本身。
+         只有一块都没拿到时，才退回链接路径正则；那条路会顺带捞到侧栏推荐等
+         无关书籍（实测多出 14 条），所以只能当兜底。 */
+      if (items.length) return items;
+      var re = /\/book\/show\/(\d+)(?:-([a-z0-9-]+))?/gi;
+      while ((m = re.exec(html))) {
+        if (seen[m[1]]) continue;
+        seen[m[1]] = 1;
+        items.push({
+          title: titleFromSlug(m[2]),
+          url: GR_SITE + '/book/show/' + m[1] + (m[2] ? '-' + m[2] : '')
+        });
       }
       if (!items.length) throw new Error('no books');
       return items;
     });
+  }
+  /* 小词不首字母大写，"46281-the-lord-of-the-rings" → "The Lord of the Rings" */
+  var SMALL_WORDS = { of: 1, the: 1, a: 1, an: 1, and: 1, or: 1, in: 1, on: 1, to: 1, for: 1, at: 1, by: 1, with: 1, from: 1 };
+  function titleFromSlug(slug) {
+    if (!slug) return '';
+    var parts = decodeURIComponent(slug).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
+    return parts.map(function (w, i) {
+      var lw = w.toLowerCase();
+      if (i > 0 && SMALL_WORDS[lw]) return lw;
+      return lw.replace(/\b([a-z])/g, function (c) { return c.toUpperCase(); });
+    }).join(' ');
+  }
+  /* 书页 HTML → 系列页链接。实测 Dune 书页里有 2 个：主系列 + 母系列（Dune Universe） */
+  function grSeriesUrlsFromBook(bookUrl) {
+    return grFetchHtml(bookUrl).then(function (html) {
+      var all = html.match(/\/series\/\d+[a-z0-9-]*/gi) || [];
+      var uniq = all.filter(function (v, i) { return all.indexOf(v) === i; });
+      if (!uniq.length) throw new Error('no-series');
+      return {
+        primary: GR_SITE + uniq[0],
+        parents: uniq.slice(1).map(function (u) { return GR_SITE + u; })
+      };
+    });
+  }
+  /* 书页 HTML → 书名/系列名/序号。og:title 形如 "Dune (Dune, #1)"，一次到位，不用拿 slug 猜 */
+  function grMetaFromBook(bookUrl) {
+    return grFetchHtml(bookUrl).then(function (html) {
+      var m = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i);
+      if (!m) throw new Error('no og:title');
+      var og = decodeEntities(m[1]).trim();
+      var info = parseBookTextLine(og);
+      if (!info.title) info.title = og;
+      return info;
+    });
+  }
+  /* 只在书名精确相等时采用 —— 无精确匹配宁可不用，也不要把同名书的信息填错 */
+  function pickExact(books, q) {
+    var nq = normTitle(q);
+    for (var i = 0; i < books.length; i++) {
+      if (normTitle(books[i].title) === nq) return books[i];
+    }
+    return null;
   }
   /* DuckDuckGo 搜索（仅用于发现系列页链接等 GR 没直接给 URL 的场景） */
   function ddgFetch(query) {
@@ -491,18 +594,18 @@
       return out;
     });
   }
-  /* 查系列页链接 → 询问是否补齐系列书目 */
+  /* 拿到系列页链接 → 询问是否补齐系列书目。
+     取链接的优先级：hit.seriesUrl（书页 HTML 里直接读到的，最权威）
+                    → 现抓书页 HTML 取 /series/{id}
+                    → 最后才用 DuckDuckGo 猜（原先只有这一条，最不稳） */
   function fetchSeriesLinkAndOffer(hit) {
-    if (!hit.series) { toast('已填好：' + hit.title + (hit.author ? ' / ' + hit.author : '')); return; }
-    ddgFetch('site:goodreads.com ' + hit.series + ' series').then(function (md) {
-      var its = parseDdgItems(md);
-      for (var j = 0; j < its.length; j++) {
-        if (its[j].url.indexOf('/series/') !== -1) { $('fGrSeriesUrlH').value = its[j].url; break; }
-      }
-      toast('已填好：' + hit.title + ' / ' + (hit.author || '?') + ' / 《' + hit.series + '》');
-    }).catch(function () {
-      toast('已填好作者和系列（系列页链接没抓到）');
-    }).then(function () {
+    if (!hit.series) {
+      toast('已填好：' + hit.title + (hit.author ? ' / ' + hit.author : '') +
+        '（这本书在 Goodreads 上没有系列信息）');
+      return;
+    }
+    function offer(seriesUrl) {
+      if (seriesUrl) $('fGrSeriesUrlH').value = seriesUrl;
       setTimeout(function () {
         if (confirm('这是《' + hit.series + '》系列' + (hit.seriesNum ? '第 ' + hit.seriesNum + ' 本' : '') +
           '。\n\n要把系列里你还没记录的书自动加为「未购买」吗？')) {
@@ -510,6 +613,33 @@
             series: hit.series,
             seriesUrl: trim($('fGrSeriesUrlH').value),
             author: hit.author || trim($('fAuthor').value)
+          });
+        }
+      }, 250);
+    }
+    var p = hit.seriesUrl ? Promise.resolve(hit.seriesUrl) : Promise.reject(new Error('no url'));
+    p = p.catch(function () {
+      if (!hit.url) throw new Error('no book url');
+      return grSeriesUrlsFromBook(hit.url).then(function (s) { return s.primary; });
+    });
+    p = p.catch(function () {
+      return ddgFetch('site:goodreads.com ' + hit.series + ' series').then(function (md) {
+        var its = parseDdgItems(md);
+        for (var j = 0; j < its.length; j++) {
+          if (its[j].url.indexOf('/series/') !== -1) return its[j].url;
+        }
+        throw new Error('ddg miss');
+      });
+    });
+    p.then(function (u) {
+      offer(u);
+      toast('已填好：' + hit.title + ' / ' + (hit.author || '?') + ' / 《' + hit.series + '》');
+    }).catch(function () {
+      toast('已填好作者和系列名，但系列页链接没抓到（系列书目暂时读不了）');
+      setTimeout(function () {
+        if (confirm('系列页链接没抓到。要用书名去搜《' + hit.series + '》的书单吗？\n（结果可能不全）')) {
+          importSeriesBooks({
+            series: hit.series, seriesUrl: '', author: hit.author || ''
           });
         }
       }, 250);
@@ -600,77 +730,84 @@
       toast('已添加 ' + news.length + ' 本《' + info.series + '》的书（状态：未购买）');
     }).catch(function () { toast('读取系列书目失败（网络原因），稍后再试'); });
   }
+  /* 三源并行，按可信度合并：
+     ① 书页 HTML（有 book 链接时）——书名/系列名/序号/系列页链接，最权威
+     ② auto_complete —— 作者名最可靠
+     ③ Open Library —— 作者名兜底
+     书名精确匹配才采用 GR 结果，避免把同名书的信息填错。 */
   function enrichFromGrBook(url, titleGuess) {
-    var q = titleGuess || trim($('fTitle').value);
-    if (!q) { toast('缺少书名，无法联网查询'); return; }
     toast('正在联网查询作者/系列…');
-    /* DDG 给系列名/系列页链接（可靠），OL 给作者名（可靠），两路并行合并 */
-    var ddgRes = null, olRes = null, pending = 2;
-    function finish() {
-      if (--pending > 0) return;
-      var hit = ddgRes || { title: q, author: '', series: '', seriesNum: '' };
-      if (!hit.title) hit.title = (olRes && olRes.title) || q;
-      if (!hit.author) hit.author = (olRes && olRes.author) || '';
-      if (!hit.series) hit.series = (olRes && olRes.series) || '';
-      $('fTitle').value = hit.title;
-      if (hit.author) $('fAuthor').value = hit.author;
-      if (hit.series) $('fSeries').value = hit.series;
-      fetchSeriesLinkAndOffer(hit);
-    }
-    grAutoComplete(q).then(function (books) {
-      var hit = null;
-      for (var i = 0; i < books.length; i++) {
-        var exact = normTitle(books[i].title) === normTitle(q);
-        if (exact && (!hit || !hit.author)) hit = books[i];
-        if (!hit) hit = books[i];
-        if (exact && books[i].author) break;
-      }
-      /* 同系列条目借作者（同系列即同作者） */
-      if (hit && !hit.author) {
-        for (var j = 0; j < books.length; j++) {
-          if (!books[j].author) continue;
-          if (!hit.series || normTitle(books[j].series || '') === normTitle(hit.series)) {
-            hit.author = books[j].author;
-            break;
-          }
+    var q = titleGuess || trim($('fTitle').value);
+    var isBook = !!(url && /goodreads\.com\/book\/show\//i.test(url));
+    var bookP = isBook
+      ? Promise.all([
+          grMetaFromBook(url).catch(function () { return null; }),
+          grSeriesUrlsFromBook(url).catch(function () { return null; })
+        ]).then(function (r) {
+          var m = r[0], s = r[1];
+          if (!m) return null;
+          return { title: m.title, author: '', series: m.series,
+                   seriesNum: m.seriesNum, seriesUrl: s ? s.primary : '' };
+        })
+      : Promise.resolve(null);
+    var grP = q ? grAutoComplete(q).then(function (books) {
+        var hit = pickExact(books, q);
+        if (!hit) return null;
+        return { title: hit.title, author: hit.author, series: hit.series,
+                 seriesNum: hit.seriesNum, seriesUrl: '' };
+      }).catch(function () { return null; }) : Promise.resolve(null);
+    var olP = q ? fetch('https://openlibrary.org/search.json?title=' + encodeURIComponent(q) +
+        '&fields=title,author_name,series&limit=3')
+        .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
+        .then(function (j) {
+          var d = ((j && j.docs) || []).filter(function (x) { return x.author_name && x.author_name.length; })[0];
+          if (!d) return null;
+          return { title: d.title || '', author: (d.author_name || []).join(', '),
+                   series: d.series && d.series.length ? d.series[0] : '',
+                   seriesNum: '', seriesUrl: '' };
+        })
+        .catch(function () { return null; }) : Promise.resolve(null);
+
+    Promise.all([bookP, grP, olP]).then(function (res) {
+      var bookRes = res[0], grRes = res[1], olRes = res[2];
+      function first(field) {
+        var list = [bookRes, grRes, olRes];
+        for (var i = 0; i < list.length; i++) {
+          if (list[i] && list[i][field]) return list[i][field];
         }
+        return '';
       }
-      ddgRes = hit;
-      finish();
-    }).catch(function () { finish(); });
-    /* Open Library：作者名可靠，系列名有则收 */
-    fetch('https://openlibrary.org/search.json?title=' + encodeURIComponent(q) +
-      '&fields=title,author_name,series&limit=3')
-      .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
-      .then(function (j) {
-        var doc = (j && j.docs || []).filter(function (d) { return d.author_name && d.author_name.length; })[0];
-        if (doc) {
-          olRes = {
-            title: doc.title || '',
-            author: (doc.author_name || []).join(', '),
-            series: doc.series && doc.series.length ? doc.series[0] : ''
-          };
-        }
-        finish();
-      })
-      .catch(function () { finish(); });
-    /* 两路都失败时提示 */
-    setTimeout(function () {
-      if (pending === 0 && !ddgRes && !olRes) {
-        toast('联网查询失败：需在「设置」填 Jina Key 并开启代理/VPN');
+      var title = first('title') || q;
+      if (!title) {
+        toast('没查到这本书：请把书名填上，或换一条 Goodreads 书页链接');
+        return;
       }
-    }, 60000);
+      var author = first('author'), series = first('series'), seriesUrl = first('seriesUrl');
+      $('fTitle').value = title;
+      if (author) $('fAuthor').value = author;
+      if (series) $('fSeries').value = series;
+      if (seriesUrl) $('fGrSeriesUrlH').value = seriesUrl;
+      if (!series && !isBook) {
+        toast('已填好：' + title + (author ? ' / ' + author : '') +
+          '（没查到系列信息；若确认有系列，可粘贴该书的 Goodreads 链接再识别一次）');
+      }
+      fetchSeriesLinkAndOffer({
+        title: title, author: author, series: series,
+        seriesNum: first('seriesNum'), seriesUrl: seriesUrl, url: url || ''
+      });
+    });
   }
   /* ============ GR 链接智能识别 ============
      粘贴 book/series/author 链接 → 解析出 ID 和名字 → 优先从本地书库匹配补全，
      书库没有的书再联网抓页面补作者/系列 */
   function parseGrUrl(url) {
     url = trim(url);
-    var m = url.match(/goodreads\.com\/book\/show\/(\d+)(?:-([A-Za-z0-9-]+))?/i);
+    /* 兼容三种写法：/book/show/44767458-dune、/book/show/44767458、/book/show/99219.The_Butlerian_Jihad */
+    var m = url.match(/goodreads\.com\/book\/show\/(\d+)(?:[.-]([A-Za-z0-9_-]+))?/i);
     if (m) return { kind: 'book', id: m[1], slug: m[2] || '' };
     m = url.match(/goodreads\.com\/series\/(\d+)(?:-([A-Za-z0-9-]+))?/i);
     if (m) return { kind: 'series', id: m[1], slug: m[2] || '' };
-    m = url.match(/goodreads\.com\/author\/show\/(\d+)\.?([A-Za-z0-9-]+)?/i);
+    m = url.match(/goodreads\.com\/author\/show\/(\d+)\.?([A-Za-z0-9_-]+)?/i);
     if (m) return { kind: 'author', id: m[1], slug: m[2] || '' };
     return null;
   }
@@ -766,56 +903,58 @@
   $('fGrUrl').addEventListener('change', function () {
     if (/goodreads\.com/i.test(this.value)) recognizeGrUrl();
   });
+  /* 串行取数：先 Goodreads，失败或超时才退到 Open Library。
+     原先两路并发 + 共享 done 标志，OL 是直连（<1 秒）永远抢赢，
+     导致用户看到的永远是「OL 结果（系列书单需 Goodreads）」——本功能失效的主因。 */
   $('btnGrFetch').addEventListener('click', function () {
     var q = trim($('fTitle').value);
     if (!q && /goodreads\.com/i.test($('fGrUrl').value)) { recognizeGrUrl(); return; }
+    if (!q) { toast('先填书名，或粘贴一条 Goodreads 链接'); return; }
     var btn = this;
     btn.disabled = true;
     btn.textContent = '查询中…';
-    var done = false;   // 已有结果展示
-    var picked = false; // 用户已点选
-    suggestBox.addEventListener('mousedown', function () { picked = true; }, { once: true });
-
-    function fail() {
-      if (done) return;
-      done = true;
-      btn.disabled = false;
-      btn.textContent = '获取';
-      hideSuggest();
-      toast('连不上图书数据源。建议在右上角「设置」里填免费的 Jina API Key（不开 VPN 也能查 Goodreads），或开启代理/VPN 后再试');
+    var settled = false;
+    function stop() { settled = true; btn.disabled = false; btn.textContent = '获取'; }
+    function olFallback() {
+      return fetch('https://openlibrary.org/search.json?title=' + encodeURIComponent(q) +
+        '&fields=title,author_name,series&limit=6')
+        .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
+        .then(function (j) {
+          var docs = (j && j.docs) || [];
+          if (settled || !docs.length) throw new Error('ol-empty');
+          stop();
+          showOlCandidates(docs.map(function (d) {
+            return {
+              title: d.title,
+              author: (d.author_name || []).join(', '),
+              series: d.series && d.series.length ? d.series[0] : ''
+            };
+          }));
+          toast('Goodreads 没连上，这里是 Open Library 的结果（可填作者/系列名；系列书单需要 Goodreads）');
+        });
     }
-    /* Goodreads 官方自动补全（经 Jina，实测稳定） */
     grAutoComplete(q).then(function (books) {
-      if (picked || done || !books.length) return;
-      done = true;
-      btn.disabled = false;
-      btn.textContent = '获取';
+      if (settled || !books.length) throw new Error('gr-empty');
+      stop();
       showGrCandidates(books.map(function (b) {
         return { title: b.title, author: b.author, series: b.series, url: b.url };
-      }), 'Goodreads 搜索结果（点选自动填作者/系列）');
-    }).catch(function () { /* 交给 Open Library 和兜底 */ });
-    /* Open Library：直连兜底（作者/系列名） */
-    fetch('https://openlibrary.org/search.json?title=' + encodeURIComponent(q) +
-      '&fields=title,author_name,series&limit=6')
-      .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
-      .then(function (j) {
-        if (picked || done) return;
-        var docs = (j && j.docs) || [];
-        if (!docs.length) return;
-        done = true;
-        btn.disabled = false;
-        btn.textContent = '获取';
-        showOlCandidates(docs.map(function (d) {
-          return {
-            title: d.title,
-            author: (d.author_name || []).join(', '),
-            series: d.series && d.series.length ? d.series[0] : ''
-          };
-        }));
-      })
-      .catch(function () { /* 兜底定时器会处理 */ });
-    /* 26 秒后仍无结果则报错（GR 代理链最长约 24 秒） */
-    setTimeout(fail, 26000);
+      }), 'Goodreads 结果（点选自动填作者/系列，并读取整条系列书目）');
+    }).catch(function () {
+      if (settled) return;
+      return olFallback().catch(function () {
+        if (settled) return;
+        stop();
+        hideSuggest();
+        toast('连不上图书数据源。请在右上角「设置」里填 Jina API Key（必填），或开启代理/VPN 后再试');
+      });
+    });
+    /* 安全网：60 秒后仍未结束就解锁按钮并说明原因 */
+    setTimeout(function () {
+      if (settled) return;
+      stop();
+      hideSuggest();
+      toast('查询超时（60 秒）：网络或 Jina Key 有问题');
+    }, 70000);
   });
 
   /* ============ 弹层控制 ============ */

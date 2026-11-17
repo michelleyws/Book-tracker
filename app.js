@@ -3,6 +3,8 @@
   'use strict';
 
   var LS_KEY = 'bookRecords.v1';
+  var LS_SUBS = 'bookSubs.v1';
+  var LS_FX = 'fxRates.v1';
   var GR_SITE = 'https://www.goodreads.com';
 
   /* ============ 存储 ============ */
@@ -59,6 +61,33 @@
     var n = parseFloat(s);
     return isNaN(n) ? null : n;
   }
+
+  /* ============ 币种 & 汇率 ============
+     每条记录可以记原币种，合计一律折成人民币。汇率存在本地，可改、可一键联网更新。 */
+  var CUR = [
+    ['CNY', '¥', '人民币'], ['USD', '$', '美元'], ['GBP', '£', '英镑'],
+    ['AUD', 'A$', '澳元'], ['EUR', '€', '欧元'], ['CAD', 'C$', '加元'],
+    ['JPY', '¥', '日元'], ['HKD', 'HK$', '港币'], ['SGD', 'S$', '新加坡元'], ['NZD', 'NZ$', '新西兰元']
+  ];
+  /* 1 单位该币种 = 多少人民币。默认值只是起始值（可在设置里改，也可联网更新） */
+  var DEFAULT_FX = { CNY: 1, USD: 7.20, GBP: 9.10, AUD: 4.70, EUR: 7.80, CAD: 5.20, JPY: 0.047, HKD: 0.92, SGD: 5.35, NZD: 4.30 };
+  var fx = (function () {
+    var o = {};
+    try { var raw = localStorage.getItem(LS_FX); if (raw) o = JSON.parse(raw) || {}; } catch (e) { o = {}; }
+    CUR.forEach(function (c) { if (typeof o[c[0]] !== 'number' || !(o[c[0]] > 0)) o[c[0]] = DEFAULT_FX[c[0]]; });
+    return o;
+  })();
+  function saveFx() { try { localStorage.setItem(LS_FX, JSON.stringify(fx)); } catch (e) {} }
+  function curOf(r) { var c = trim(r && r.currency).toUpperCase(); return fx[c] ? c : 'CNY'; }
+  function curSymbol(c) { for (var i = 0; i < CUR.length; i++) if (CUR[i][0] === c) return CUR[i][1]; return ''; }
+  function curName(c) { for (var i = 0; i < CUR.length; i++) if (CUR[i][0] === c) return CUR[i][2]; return c; }
+  /* 折合人民币；没填价格返回 null */
+  function cnyOf(r) {
+    var n = priceVal(r && r.price);
+    if (n == null) return null;
+    return n * (fx[curOf(r)] || 1);
+  }
+  function money(n) { return '¥' + (+n).toFixed(2).replace(/\.00$/, ''); }
 
   /* Goodreads：有直链用直链，没有就按书名+作者搜索 */
   function grUrlFor(rec) {
@@ -134,14 +163,15 @@
       if (!q) return true;
       /* 所有字段都参与搜索 */
       return [r.title, r.author, r.series, r.publisher, r.source, r.sourceUrl,
-        r.note, r.owned, r.binding, r.date, r.price, r.goodreadsUrl]
+        r.note, r.owned, r.binding, r.date, r.price, r.currency, r.goodreadsUrl]
         .some(function (v) { return trim(v).toLowerCase().indexOf(q) !== -1; });
     });
     list.sort(function (a, b) {
       switch (state.sort) {
         case 'date-asc': return dateVal(a.date) - dateVal(b.date);
-        case 'price-desc': return (priceVal(b.price) == null ? -1 : priceVal(b.price)) - (priceVal(a.price) == null ? -1 : priceVal(a.price));
-        case 'price-asc': return (priceVal(a.price) == null ? Infinity : priceVal(a.price)) - (priceVal(b.price) == null ? Infinity : priceVal(b.price));
+        /* 价格排序按「折合人民币」比，否则美元和人民币混在一起排没有意义 */
+        case 'price-desc': return (cnyOf(b) == null ? -1 : cnyOf(b)) - (cnyOf(a) == null ? -1 : cnyOf(a));
+        case 'price-asc': return (cnyOf(a) == null ? Infinity : cnyOf(a)) - (cnyOf(b) == null ? Infinity : cnyOf(b));
         case 'title': return trim(a.title).localeCompare(trim(b.title));
         case 'date-desc':
         default: return dateVal(b.date) - dateVal(a.date);
@@ -151,18 +181,22 @@
   }
 
   function renderSummary() {
-    var got = 0, pending = 0, unowned = 0, sum = 0;
+    var got = 0, pending = 0, unowned = 0, sum = 0, foreign = 0;
     records.forEach(function (r) {
-      var n = priceVal(r.price);
+      var n = cnyOf(r);
+      var cur = curOf(r);
+      if (cur !== 'CNY') foreign++;
       if (r.owned === '是') { got++; if (n != null) sum += n; }
       else if (r.owned === '没到手') { pending++; if (n != null) sum += n; }
       else unowned++;
     });
-    var money = sum ? '¥' + sum.toFixed(2).replace(/\.00$/, '') : '—';
+    /* 注意：不要把局部变量取名 money —— 会和上面那个 money() 函数同名，
+       var 提升后整个函数里 money 都变成 undefined，调用直接报 not a function。 */
+    var moneyText = sum ? money(sum) : '—';
     $('summaryCard').innerHTML =
       '<div class="sum-tile">' +
       '<div class="sum-num green">' + (got + pending) + '</div>' +
-      '<div class="sum-money">' + money + '</div>' +
+      '<div class="sum-money">' + moneyText + (foreign ? '（含 ' + foreign + ' 条外币）' : '') + '</div>' +
       '<div class="sum-label">已购买 · 含没到手</div></div>' +
       '<div class="sum-tile">' +
       '<div class="sum-num orange">' + pending + '</div>' +
@@ -187,7 +221,11 @@
       if (trim(r.series)) tags.push('<span class="tag series">' + esc(r.series) + '</span>');
       if (trim(r.binding)) tags.push('<span class="tag ' + (r.binding === '精装' ? 'binding-hc' : 'binding-pb') + '">' + esc(r.binding) + '</span>');
       if (trim(r.date)) tags.push('<span class="tag date">' + esc(r.date) + '</span>');
-      if (trim(r.price)) tags.push('<span class="tag price">' + esc(r.price) + '</span>');
+      if (trim(r.price)) {
+        var pc = curOf(r), pv = priceVal(r.price);
+        tags.push('<span class="tag price">' + esc(curSymbol(pc) + (pv == null ? trim(r.price) : pv)) +
+          (pc !== 'CNY' ? ' ≈' + money(pv * fx[pc]) : '') + '</span>');
+      }
       if (trim(r.source)) tags.push('<span class="tag">' + esc(r.source) + '</span>');
       return '<div class="book-card' + (selected[r.id] ? ' selected' : '') + '" data-id="' + r.id + '">' +
         (selecting ? '<span class="sel-dot' + (selected[r.id] ? ' on' : '') + '">✓</span>' : '') +
@@ -199,6 +237,9 @@
         (trim(r.note) ? '<div class="book-note">' + esc(r.note) + '</div>' : '') +
         '</div><span class="chev">›</span></div>';
     }).join('');
+
+    renderDueBanner();
+    renderSubs();
 
     /* 长按（触屏按住 0.55 秒 / 右键）进入多选；多选模式下点击 = 勾选/取消 */
     box.querySelectorAll('.book-card').forEach(function (card) {
@@ -244,10 +285,16 @@
     var r = records.find(function (x) { return x.id === id; });
     if (!r) return;
     var ownedText = r.owned === '是' ? '已到手' : r.owned === '没到手' ? '买了 · 没到手' : r.owned;
+    var priceText = '';
+    if (trim(r.price)) {
+      var pv = priceVal(r.price), pc = curOf(r);
+      priceText = curSymbol(pc) + (pv == null ? trim(r.price) : pv);
+      if (pc !== 'CNY' && pv != null) priceText += '（' + curName(pc) + ' · 折合 ' + money(pv * fx[pc]) + '）';
+    }
     var rows = [
       ['作者', r.author], ['系列', r.series], ['状态', ownedText],
       ['装帧', r.binding], ['购入日期', r.date], ['购入来源', r.source],
-      ['价格', r.price], ['出版社', r.publisher]
+      ['价格', priceText], ['出版社', r.publisher]
     ].filter(function (p) { return trim(p[1]); });
 
     $('detailBody').innerHTML =
@@ -292,6 +339,9 @@
     $('fSource').value = isEdit ? rec.source : '';
     $('fSourceUrl').value = isEdit ? rec.sourceUrl : '';
     $('fPrice').value = isEdit && trim(rec.price) !== '' ? rec.price : '';
+    if ($('fCurrency')) $('fCurrency').value = isEdit ? curOf(rec) : 'CNY';
+    if ($('fBoxRef')) $('fBoxRef').value = '';
+    if ($('formBoxTip')) $('formBoxTip').hidden = true;
     $('fPublisher').value = isEdit ? rec.publisher : '';
     $('fNote').value = isEdit ? rec.note : '';
     $('fGrUrl').value = isEdit ? rec.goodreadsUrl : '';
@@ -301,6 +351,21 @@
     $('grTip').hidden = true;
     openModal('formModal');
     setTimeout(function () { $('fTitle').focus(); }, 250);
+  }
+
+  /* 从订阅期次里「＋ 加书」进来：先把这期记下来，保存时把书同时挂进那一期 */
+  function openFormForBox(subId, boxId) {
+    var s = subById(subId), b = s ? boxOf(s, boxId) : null;
+    openForm(null);
+    if (!s || !b) return;
+    $('fBoxRef').value = subId + '|' + boxId;
+    $('formBoxTip').innerHTML = '这本书会同时记进 <b>' + esc(s.name) + '</b> 的 <b>' + esc(b.period) +
+      '</b> 期（作者/系列/Goodreads 链接照常可用「获取」自动补全）。';
+    $('formBoxTip').hidden = false;
+    if (!$('fDate').value && b.chargeDate) $('fDate').value = toInputDate(b.chargeDate);
+    if (!$('fSource').value) $('fSource').value = s.name;
+    if (b.currency) $('fCurrency').value = b.currency;
+    if (b.amount && !$('fPrice').value) $('fPrice').value = b.amount;
   }
 
   $('bookForm').addEventListener('submit', function (e) {
@@ -318,22 +383,32 @@
       price: $('fPrice').value === '' ? '' : String(parseFloat($('fPrice').value)),
       publisher: trim($('fPublisher').value),
       note: trim($('fNote').value),
+      currency: $('fCurrency') ? $('fCurrency').value : 'CNY',
       goodreadsUrl: trim($('fGrUrl').value),
       grBookUrl: trim($('fGrBookUrlH').value),
       grAuthorUrl: trim($('fGrAuthorUrlH').value),
       grSeriesUrl: trim($('fGrSeriesUrlH').value)
     };
     if (!data.title) { toast('请填写书名'); return; }
+    var savedRec = null;
     if (id) {
       var rec = records.find(function (x) { return x.id === id; });
       if (rec) Object.keys(data).forEach(function (k) { rec[k] = data[k]; });
+      savedRec = rec;
       toast('已保存修改');
     } else {
       data.id = uid();
       records.push(data);
+      savedRec = data;
       toast('已添加');
     }
-    save(); closeModal('formModal'); render();
+    save();
+    var boxRef = trim($('fBoxRef') ? $('fBoxRef').value : '');
+    if (boxRef && savedRec) {
+      var parts = boxRef.split('|');
+      if (attachBookToBox(parts[0], parts[1], savedRec)) toast('已记入订阅期次');
+    }
+    closeModal('formModal'); render();
   });
 
   $('btnGrSearch').addEventListener('click', function () {
@@ -1280,11 +1355,13 @@
   function openModal(id) { $(id).hidden = false; document.body.style.overflow = 'hidden'; }
   function closeModal(id) {
     $(id).hidden = true;
-    if ($('detailModal').hidden && $('formModal').hidden && $('importModal').hidden && $('settingsModal').hidden) {
+    if ($('detailModal').hidden && $('formModal').hidden && $('importModal').hidden &&
+        $('settingsModal').hidden && $('seriesModal').hidden && $('subModal').hidden &&
+        $('boxModal').hidden && $('fxModal').hidden) {
       document.body.style.overflow = '';
     }
   }
-  ['detailModal', 'formModal', 'importModal', 'settingsModal', 'seriesModal'].forEach(function (mid) {
+  ['detailModal', 'formModal', 'importModal', 'settingsModal', 'seriesModal', 'subModal', 'boxModal', 'fxModal'].forEach(function (mid) {
     $(mid).addEventListener('click', function (e) { if (e.target === $(mid)) closeModal(mid); });
   });
   $('btnSettings').onclick = function () {
@@ -1352,11 +1429,14 @@
   $('btnExport').onclick = function () {
     if (!records.length) { toast('暂无数据可导出'); return; }
     /* 腾讯文档原格式：第 1 行空，表头在第 2 行（B~K），数据从第 3 行开始 */
-    var COLS = ['是否入手', '系列', '书名', '作者', '平装/精装', '购入日期', '购入来源', '价格', '出版社', '备注'];
+    var COLS = ['是否入手', '系列', '书名', '作者', '平装/精装', '购入日期', '购入来源', '价格', '出版社', '备注',
+      '币种', '折合人民币'];
     var rowBlank = new Array(COLS.length + 1).fill('');
     var aoa = [rowBlank, [''].concat(COLS)].concat(records.map(function (r) {
+      var cny = cnyOf(r);
       return ['', r.owned, r.series, r.title, r.author, r.binding, r.date,
-        r.source, r.price, r.publisher, r.note]
+        r.source, r.price, r.publisher, r.note, curOf(r),
+        cny == null ? '' : (+cny).toFixed(2)]
         .map(function (v) { return v == null ? '' : v; });
     }));
     var ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -1383,6 +1463,7 @@
     '是否入手': 'owned', '系列': 'series', '书名': 'title', '作者': 'author',
     '平装/精装': 'binding', '装帧': 'binding', '购入日期': 'date', '购入来源': 'source',
     '价格': 'price', '出版社': 'publisher', '备注': 'note',
+    '币种': 'currency', '货币': 'currency',
     '购买链接': 'sourceUrl', 'goodreads链接': 'goodreadsUrl', 'goodreads url': 'goodreadsUrl'
   };
 
@@ -1487,6 +1568,7 @@
           date: normalizeDate(cell('date')),
           source: cell('source'),
           price: normalizePrice(cell('price')),
+          currency: cell('currency') ? cell('currency').toUpperCase() : '',
           publisher: cell('publisher'),
           note: cell('note'),
           sourceUrl: cell('sourceUrl') || src,
@@ -1495,11 +1577,12 @@
           grAuthorUrl: grAuthor,
           goodreadsUrl: grBook || grSeries || grAuthor
         };
+        if (!recData.currency) recData.currency = 'CNY';
         var key = keyOf(recData);
         var exist = byKey[key];
         if (exist) {
           Object.keys(recData).forEach(function (k) {
-            if (!recData[k] && (k === 'goodreadsUrl' || k === 'sourceUrl' ||
+            if (!recData[k] && (k === 'goodreadsUrl' || k === 'sourceUrl' || k === 'currency' ||
               k === 'grBookUrl' || k === 'grSeriesUrl' || k === 'grAuthorUrl')) return;
             exist[k] = recData[k];
           });
@@ -1614,6 +1697,519 @@
     for (var i = 0; i < letters.length; i++) n = n * 26 + (letters.charCodeAt(i) - 64);
     return n - 1;
   }
+
+
+  /* ============================================================
+     订阅盒子：The Broken Binding / Bookish and Spice / Eldritch King …
+     每次扣款建一条「期次」，期次里的书目就是书库那套记录（书名/作者/系列/
+     Goodreads 链接，用「获取」自动补全），并记录这期扣了没有、买了还是 skip 了。
+     ============================================================ */
+  var SUBS_PRESET = ['The Broken Binding', 'Bookish and Spice', 'Eldritch King'];
+
+  function loadSubs() {
+    var arr = null;
+    try { var raw = localStorage.getItem(LS_SUBS); arr = raw ? JSON.parse(raw) : null; } catch (e) { arr = null; }
+    if (!Array.isArray(arr)) {
+      arr = SUBS_PRESET.map(function (n) {
+        /* 只预置名字：各家扣款日不一致（要看官网），币种也按各家实际选，先留空由用户填 */
+        return { id: uid(), name: n, site: '', cycle: 1, chargeDay: 0, amount: '',
+                 currency: 'GBP', active: true, note: '', boxes: [] };
+      });
+    }
+    arr.forEach(function (s) {
+      if (!s.id) s.id = uid();
+      if (!Array.isArray(s.boxes)) s.boxes = [];
+      if (typeof s.cycle !== 'number' || (s.cycle !== 1 && s.cycle !== 2)) s.cycle = 1;
+      if (typeof s.chargeDay !== 'number' || s.chargeDay < 0 || s.chargeDay > 31) s.chargeDay = 0;
+      if (!s.currency || !fx[s.currency]) s.currency = 'GBP';
+      if (typeof s.active !== 'boolean') s.active = true;
+      s.boxes.forEach(function (b) {
+        if (!b.id) b.id = uid();
+        if (!Array.isArray(b.books)) b.books = [];
+        if (!b.status) b.status = 'pending';
+        if (!b.currency || !fx[b.currency]) b.currency = s.currency;
+      });
+    });
+    return arr;
+  }
+  var subs = loadSubs();
+  function saveSubs() { try { localStorage.setItem(LS_SUBS, JSON.stringify(subs)); } catch (e) { toast('保存失败：存储空间不足'); } }
+  function subById(id) { for (var i = 0; i < subs.length; i++) if (subs[i].id === id) return subs[i]; return null; }
+  function boxOf(s, id) { if (!s) return null; for (var i = 0; i < s.boxes.length; i++) if (s.boxes[i].id === id) return s.boxes[i]; return null; }
+
+  /* ---- 日期小工具 ---- */
+  function pad2(n) { return ('0' + n).slice(-2); }
+  function ymd(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function today0() { var d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+  function parseYmd(s) {
+    var m = trim(s).match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  }
+  function daysFromToday(d) { return Math.round((d.getTime() - today0().getTime()) / 86400000); }
+  function periodOf(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1); }
+  function periodLabel(p) { var m = trim(p).match(/^(\d{4})-(\d{2})$/); return m ? (+m[2]) + '月' : String(p || ''); }
+  function cnDate(d) { return d ? (d.getMonth() + 1) + '月' + d.getDate() + '日' : ''; }
+  function gapText(g) { return g < 0 ? '已过 ' + (-g) + ' 天待处理' : g === 0 ? '今天扣款' : '还有 ' + g + ' 天'; }
+
+  /* 下一次扣款日（没设扣款日返回 null）。扣款日大于当月天数时用当月最后一天 */
+  function nextCharge(s, from) {
+    if (!s.chargeDay) return null;
+    from = from || today0();
+    for (var k = 0; k < 36; k++) {
+      var d = new Date(from.getFullYear(), from.getMonth() + k * s.cycle, 1);
+      var last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      d.setDate(Math.min(s.chargeDay, last));
+      d.setHours(0, 0, 0, 0);
+      if (d.getTime() >= from.getTime()) return d;
+    }
+    return null;
+  }
+  /* 提醒清单：14 天内要扣款、或已过期还没处理 */
+  function dueAlerts() {
+    var out = [];
+    subs.forEach(function (s) {
+      if (!s.active) return;
+      s.boxes.forEach(function (b) {
+        if (b.status !== 'pending') return;
+        var d = parseYmd(b.chargeDate);
+        if (!d) return;
+        var gap = daysFromToday(d);
+        if (gap <= 14) out.push({ s: s, b: b, d: d, gap: gap });
+      });
+      var n = nextCharge(s);
+      if (n && daysFromToday(n) <= 14) {
+        var has = s.boxes.some(function (b) { return b.period === periodOf(n); });
+        if (!has) out.push({ s: s, b: null, d: n, gap: daysFromToday(n) });
+      }
+    });
+    out.sort(function (a, b) { return a.d - b.d; });
+    return out;
+  }
+  function makeBox(s, when) {
+    var d = when || today0();
+    var last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    var cd = new Date(d.getFullYear(), d.getMonth(), Math.min(s.chargeDay || 1, last));
+    return {
+      id: uid(), period: periodOf(d), chargeDate: ymd(cd), status: 'pending',
+      amount: trim(s.amount), currency: s.currency, note: '', books: []
+    };
+  }
+
+  /* 把书挂到期次上（同一本书重复加只更新，不重复） */
+  function attachBookToBox(subId, boxId, rec) {
+    var s = subById(subId), b = boxOf(s, boxId);
+    if (!s || !b || !rec) return false;
+    var entry = {
+      recId: rec.id, title: trim(rec.title), author: trim(rec.author), series: trim(rec.series),
+      grBookUrl: trim(rec.grBookUrl) || trim(rec.goodreadsUrl),
+      grAuthorUrl: trim(rec.grAuthorUrl), grSeriesUrl: trim(rec.grSeriesUrl),
+      price: trim(rec.price), currency: curOf(rec)
+    };
+    var i;
+    for (i = 0; i < b.books.length; i++) if (b.books[i].recId === rec.id) break;
+    if (i < b.books.length) b.books[i] = entry; else b.books.push(entry);
+    saveSubs();
+    return true;
+  }
+  function bookFromBoxEntry(e) {
+    /* 期次里的书优先取书库最新数据，取不到就用当时的快照 */
+    for (var i = 0; i < records.length; i++) if (records[i].id === e.recId) return records[i];
+    return e;
+  }
+
+  /* ---- 渲染 ---- */
+  function boxBookHtml(s, b, e) {
+    var r = bookFromBoxEntry(e);
+    var url = trim(r.grBookUrl) || trim(r.goodreadsUrl);
+    var title = trim(r.title) || '（无书名）';
+    var tags = '';
+    if (trim(r.series)) tags += '<span class="tag series">' + esc(r.series) + '</span>';
+    if (trim(r.price)) tags += '<span class="tag price">' + esc(curSymbol(curOf(r)) + trim(r.price)) + '</span>';
+    if (r.owned === '否' || !trim(r.owned)) tags += '<span class="tag">未入库</span>';
+    return '<div class="box-book">' +
+      '<div class="bb-main">' +
+      (url ? '<a class="bb-title" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(title) + '</a>'
+           : '<span class="bb-title plain">' + esc(title) + '</span>') +
+      (trim(r.author) ? '<div class="bb-author">' + esc(r.author) + '</div>' : '') +
+      (tags ? '<div class="bb-tags">' + tags + '</div>' : '') +
+      '</div>' +
+      '<button class="btn btn-small" type="button" data-act="unbind" data-sub="' + s.id + '" data-box="' + b.id +
+      '" data-rec="' + esc(e.recId) + '">移除</button>' +
+      '</div>';
+  }
+  function boxCardHtml(s, b) {
+    var d = parseYmd(b.chargeDate);
+    var stText = b.status === 'charged' ? '已扣款' : b.status === 'skipped' ? '已跳过'
+      : b.status === 'cancelled' ? '已取消' : '待扣款';
+    var amt = trim(b.amount) ? curSymbol(b.currency || s.currency) + b.amount : '';
+    var books = b.books.length
+      ? b.books.map(function (e) { return boxBookHtml(s, b, e); }).join('')
+      : '<p class="box-empty">本期书目还没登记 —— 点「＋ 加书」，作者 / 系列 / Goodreads 链接和书库一样能自动补全。</p>';
+    return '<div class="box-card ' + b.status + '">' +
+      '<div class="box-head"><span class="box-period">' + esc(periodLabel(b.period)) + '</span>' +
+      '<span class="box-st ' + b.status + '">' + stText + '</span>' +
+      (amt ? '<span class="box-amt">' + esc(amt) + '</span>' : '') +
+      '<span class="box-date">' + (d ? cnDate(d) + ' 扣款' : '未设日期') + '</span></div>' +
+      (trim(b.note) ? '<div class="box-note">' + esc(b.note) + '</div>' : '') +
+      '<div class="box-books">' + books + '</div>' +
+      '<div class="box-actions">' +
+      '<button class="btn btn-small" type="button" data-act="addbook" data-sub="' + s.id + '" data-box="' + b.id + '">＋ 加书</button>' +
+      (b.status === 'pending'
+        ? '<button class="btn btn-small" type="button" data-act="charged" data-sub="' + s.id + '" data-box="' + b.id + '">标记已扣款</button>' +
+          '<button class="btn btn-small" type="button" data-act="skipped" data-sub="' + s.id + '" data-box="' + b.id + '">跳过这期</button>'
+        : '<button class="btn btn-small" type="button" data-act="reopen" data-sub="' + s.id + '" data-box="' + b.id + '">改回待扣款</button>') +
+      '<button class="btn btn-small" type="button" data-act="editbox" data-sub="' + s.id + '" data-box="' + b.id + '">编辑</button>' +
+      '</div></div>';
+  }
+  function subCardHtml(s) {
+    var n = nextCharge(s), badge;
+    if (!s.active) badge = '<span class="sub-badge off">已停用</span>';
+    else if (!s.chargeDay) badge = '<span class="sub-badge none">未设扣款日</span>';
+    else {
+      var gap = daysFromToday(n);
+      badge = gap <= 14 ? '<span class="sub-badge due">' + gapText(gap) + '</span>'
+        : '<span class="sub-badge">' + cnDate(n) + ' 扣款</span>';
+    }
+    var meta = [s.chargeDay ? (s.cycle === 2 ? '每两月 ' : '每月 ') + s.chargeDay + ' 日扣款' : '扣款日未设置'];
+    if (trim(s.amount)) meta.push(curSymbol(s.currency) + s.amount + '（≈' + money(priceVal(s.amount) * (fx[s.currency] || 1)) + '）');
+    if (trim(s.site)) meta.push('<a href="' + esc(s.site) + '" target="_blank" rel="noopener">官网</a>');
+    var boxes = s.boxes.slice().sort(function (a, b) { return dateVal(b.chargeDate) - dateVal(a.chargeDate); });
+    return '<div class="sub-card">' +
+      '<div class="sub-head"><span class="sub-name">' + esc(s.name) + '</span>' + badge + '</div>' +
+      '<div class="sub-meta">' + meta.join(' · ') + (trim(s.note) ? ' · ' + esc(s.note) : '') + '</div>' +
+      '<div class="sub-actions">' +
+      '<button class="btn btn-small" type="button" data-act="newbox" data-sub="' + s.id + '">＋ 新建本期</button>' +
+      '<button class="btn btn-small" type="button" data-act="edit" data-sub="' + s.id + '">编辑订阅</button>' +
+      '<button class="btn btn-small" type="button" data-act="toggle" data-sub="' + s.id + '">' + (s.active ? '停用' : '启用') + '</button>' +
+      '<button class="btn btn-small btn-danger" type="button" data-act="del" data-sub="' + s.id + '">删除</button>' +
+      '</div>' +
+      (boxes.length ? boxes.map(function (b) { return boxCardHtml(s, b); }).join('')
+        : '<p class="box-empty">还没有期次。设好扣款日后点「＋ 新建本期」，就能记录这次扣款和本期书目了。</p>') +
+      '</div>';
+  }
+  function renderSubs() {
+    var list = $('subsList');
+    if (!list) return;
+    var yr = today0().getFullYear(), spend = 0, chargedN = 0, pendN = 0, skipN = 0;
+    subs.forEach(function (s) {
+      s.boxes.forEach(function (b) {
+        if (b.status === 'charged') {
+          var n = priceVal(b.amount);
+          var d = parseYmd(b.chargeDate);
+          if (n != null && (!d || d.getFullYear() === yr)) spend += n * (fx[b.currency || s.currency] || 1);
+          chargedN++;
+        } else if (b.status === 'pending') pendN++;
+        else if (b.status === 'skipped') skipN++;
+      });
+    });
+    if ($('subsTop')) {
+      $('subsTop').innerHTML =
+        '<div class="sum-tile"><div class="sum-num green">' + money(spend) + '</div>' +
+        '<div class="sum-label">订阅已扣款（人民币 · ' + yr + '年）</div></div>' +
+        '<div class="sum-tile"><div class="sum-num ' + (pendN ? 'orange' : '') + '">' + pendN + '</div>' +
+        '<div class="sum-label">待处理期次</div></div>' +
+        '<div class="sum-tile"><div class="sum-num blue">' + chargedN + '</div><div class="sum-label">已扣款期数</div></div>' +
+        '<div class="sum-tile"><div class="sum-num">' + skipN + '</div><div class="sum-label">已跳过期数</div></div>';
+    }
+    var al = $('subsAlert'), alerts = dueAlerts();
+    if (al) {
+      if (alerts.length) {
+        al.hidden = false;
+        al.innerHTML = alerts.slice(0, 4).map(function (a) {
+          return '<div class="alert-row' + (a.gap < 0 ? ' late' : '') + '">' +
+            (a.gap < 0 ? '⚠️ ' : '⏰ ') + '<b>' + esc(a.s.name) + '</b> ' + cnDate(a.d) + ' 扣款 · ' + gapText(a.gap) +
+            (a.b ? (a.b.books.length ? ' · 已登记书目 ' + a.b.books.length + ' 本' : ' · 书目还没登记')
+                 : ' <button class="btn btn-small" type="button" data-act="newbox" data-sub="' + a.s.id +
+                   '" data-when="' + ymd(a.d) + '">建本期</button>') + '</div>';
+        }).join('');
+      } else { al.hidden = true; al.innerHTML = ''; }
+    }
+    var order = subs.slice().sort(function (a, b) {
+      var na = nextCharge(a), nb = nextCharge(b);
+      if (!na && !nb) return trim(a.name).localeCompare(trim(b.name));
+      if (!na) return 1;
+      if (!nb) return -1;
+      return na - nb;
+    });
+    list.innerHTML = order.map(subCardHtml).join('');
+  }
+  /* 书库页顶部的扣款提醒 */
+  function renderDueBanner() {
+    var el = $('dueBanner');
+    if (!el) return;
+    var a = dueAlerts();
+    if (!a.length) { el.hidden = true; el.innerHTML = ''; return; }
+    var f = a[0];
+    el.hidden = false;
+    el.innerHTML = '<span>' + (f.gap < 0 ? '⚠️' : '⏰') + ' <b>' + esc(f.s.name) + '</b> ' + cnDate(f.d) +
+      ' 扣款 · ' + gapText(f.gap) + (a.length > 1 ? '（另有 ' + (a.length - 1) + ' 个）' : '') + '</span>' +
+      '<button class="btn btn-small" type="button" id="dueGo">查看</button>';
+    if ($('dueGo')) $('dueGo').onclick = function () { setView('subs'); };
+  }
+
+  /* ---- 操作 ---- */
+  function setBoxStatus(s, b, st) {
+    if (!s || !b) return;
+    if (st === 'charged' && !trim(b.amount) && trim(s.amount)) b.amount = trim(s.amount);
+    b.status = st;
+    saveSubs(); renderSubs(); render();
+    toast(s.name + ' ' + periodLabel(b.period) + '：' + (st === 'charged' ? '已记扣款' : st === 'skipped' ? '已跳过' : '改回待扣款'));
+  }
+  function unbindBook(s, b, recId) {
+    if (!s || !b) return;
+    b.books = b.books.filter(function (e) { return e.recId !== recId; });
+    saveSubs(); renderSubs(); toast('已从本期移除（书库记录还在）');
+  }
+  function deleteBox(s, b) {
+    if (!s || !b) return;
+    if (!confirm('删除 ' + s.name + ' ' + periodLabel(b.period) + ' 这一期？\n（只是删掉期次记录，书库里的书不受影响）')) return;
+    s.boxes = s.boxes.filter(function (x) { return x.id !== b.id; });
+    saveSubs(); renderSubs(); render(); toast('已删除该期');
+  }
+  function deleteSub(s) {
+    if (!s) return;
+    if (!confirm('删除订阅「' + s.name + '」？\n它下面的所有期次记录也会一起删掉（书库里的书不受影响）。')) return;
+    subs = subs.filter(function (x) { return x.id !== s.id; });
+    saveSubs(); renderSubs(); render(); toast('已删除订阅');
+  }
+  function newBoxNow(s, whenStr) {
+    if (!s) return;
+    var when = parseYmd(whenStr) || today0();
+    if (!s.chargeDay) { toast('先给「' + s.name + '」填上扣款日，再建本期'); openSubForm(s); return; }
+    if (s.boxes.some(function (b) { return b.period === periodOf(when); })) {
+      toast(periodLabel(periodOf(when)) + ' 这一期已经建过了');
+      return;
+    }
+    s.boxes.push(makeBox(s, when));
+    saveSubs(); renderSubs(); render();
+    toast('已建 ' + periodLabel(periodOf(when)) + ' 期，接着把本期书目加进去');
+  }
+  function subsClick(e) {
+    var el = e.target.closest('[data-act]');
+    if (!el) return;
+    var act = el.dataset.act;
+    var s = subById(el.dataset.sub);
+    var b = s ? boxOf(s, el.dataset.box) : null;
+    if (act === 'newbox') newBoxNow(s, el.dataset.when);
+    else if (act === 'edit') openSubForm(s);
+    else if (act === 'toggle') { s.active = !s.active; saveSubs(); renderSubs(); render(); }
+    else if (act === 'del') deleteSub(s);
+    else if (act === 'addbook') { if (s && b) openFormForBox(s.id, b.id); }
+    else if (act === 'charged') setBoxStatus(s, b, 'charged');
+    else if (act === 'skipped') setBoxStatus(s, b, 'skipped');
+    else if (act === 'reopen') setBoxStatus(s, b, 'pending');
+    else if (act === 'editbox') openBoxForm(s, b);
+    else if (act === 'unbind') unbindBook(s, b, el.dataset.rec);
+  }
+
+  /* ---- 订阅表单 ---- */
+  var editingSub = null;
+  function fillCurSel(sel, val) {
+    if (!sel) return;
+    if (!sel.options.length) {
+      sel.innerHTML = CUR.map(function (c) {
+        return '<option value="' + c[0] + '">' + c[1] + ' ' + c[2] + '</option>';
+      }).join('');
+    }
+    sel.value = fx[val] ? val : 'CNY';
+  }
+  function openSubForm(s) {
+    editingSub = s || null;
+    $('subTitle').textContent = s ? '编辑订阅' : '添加订阅';
+    $('sId').value = s ? s.id : '';
+    $('sName').value = s ? s.name : '';
+    $('sSite').value = s ? s.site : '';
+    $('sCycle').value = s ? String(s.cycle) : '1';
+    $('sDay').value = s && s.chargeDay ? String(s.chargeDay) : '';
+    $('sAmount').value = s ? s.amount : '';
+    fillCurSel($('sCurrency'), s ? s.currency : 'GBP');
+    $('sActive').checked = s ? !!s.active : true;
+    $('sNote').value = s ? s.note : '';
+    openModal('subModal');
+  }
+  function openBoxForm(s, b) {
+    if (!s || !b) return;
+    $('boxTitle').textContent = s.name + ' · ' + periodLabel(b.period) + ' 期';
+    $('bSubId').value = s.id;
+    $('bId').value = b.id;
+    $('bPeriod').value = b.period;
+    $('bDate').value = toInputDate(b.chargeDate);
+    $('bStatus').value = b.status;
+    $('bAmount').value = b.amount;
+    fillCurSel($('bCurrency'), b.currency || s.currency);
+    $('bNote').value = b.note;
+    openModal('boxModal');
+  }
+
+  /* ---- 汇率 ---- */
+  function openFxForm() {
+    $('fxList').innerHTML = CUR.filter(function (c) { return c[0] !== 'CNY'; }).map(function (c) {
+      return '<label class="fx-row"><span>' + c[1] + ' ' + c[2] + '　1 ' + c[0] + ' = ? 人民币</span>' +
+        '<input type="number" step="0.0001" inputmode="decimal" data-cur="' + c[0] + '" value="' + fx[c[0]] + '"></label>';
+    }).join('');
+    openModal('fxModal');
+  }
+  function saveFxForm() {
+    $('fxList').querySelectorAll('input[data-cur]').forEach(function (inp) {
+      var v = parseFloat(inp.value);
+      if (!isNaN(v) && v > 0) fx[inp.dataset.cur] = v;
+    });
+    saveFx(); closeModal('fxModal'); render(); renderSubs();
+    toast('汇率已保存，合计和¥换算都跟着更新');
+  }
+  function updateFxOnline() {
+    var btn = $('btnFxUpdate');
+    if (!btn) return;
+    btn.disabled = true; btn.textContent = '更新中…';
+    function done(ok, msg) {
+      btn.disabled = false; btn.textContent = '联网更新汇率';
+      toast(msg);
+      if (ok) { openFxForm(); render(); renderSubs(); }
+    }
+    /* 免费、免 key、带 CORS 的汇率接口：返回「1 人民币 = 多少外币」，取倒数 */
+    fetch('https://open.er-api.com/v6/latest/CNY')
+      .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
+      .then(function (j) {
+        if (!j || !j.rates) throw new Error('bad');
+        var n = 0;
+        CUR.forEach(function (c) {
+          if (c[0] === 'CNY') return;
+          var per = j.rates[c[0]];
+          if (typeof per === 'number' && per > 0) { fx[c[0]] = 1 / per; n++; }
+        });
+        if (!n) throw new Error('none');
+        saveFx();
+        done(true, '已用最新汇率更新 ' + n + ' 个币种');
+      })
+      .catch(function () { done(false, '联网更新失败（不影响使用，可以手动填汇率）'); });
+  }
+
+  /* ---- 日历提醒（.ics）：静态网页没法后台推送，导进手机日历就能真提醒 ---- */
+  function icsEscape(s) {
+    return trim(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  }
+  function icsDate(d) { return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()); }
+  function buildIcs() {
+    var L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Book-tracker//订阅扣款提醒//CN',
+      'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:订阅盒子扣款'];
+    var stamp = icsDate(today0()) + 'T000000Z';
+    subs.forEach(function (s) {
+      if (!s.active) return;
+      var n = nextCharge(s);
+      if (n) {
+        L.push('BEGIN:VEVENT', 'UID:sub-' + s.id + '@book-tracker', 'DTSTAMP:' + stamp,
+          'DTSTART;VALUE=DATE:' + icsDate(n),
+          'DTEND;VALUE=DATE:' + icsDate(new Date(n.getTime() + 86400000)),
+          'RRULE:FREQ=MONTHLY;INTERVAL=' + s.cycle);
+        L.push('SUMMARY:' + icsEscape('订阅扣款：' + s.name + (trim(s.amount) ? ' ' + curSymbol(s.currency) + s.amount : '')));
+        L.push('DESCRIPTION:' + icsEscape('每月 ' + s.chargeDay + ' 日扣款' + (trim(s.site) ? '\n官网：' + s.site : '') +
+          '\n到「书籍购入」App 的订阅页记这一期买了还是跳过'));
+        L.push('BEGIN:VALARM', 'TRIGGER:-P7D', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEscape('7 天后扣款：' + s.name), 'END:VALARM');
+        L.push('BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEscape('明天扣款：' + s.name), 'END:VALARM');
+        L.push('END:VEVENT');
+      }
+      s.boxes.forEach(function (b) {
+        if (!b.books.length) return;
+        var d = parseYmd(b.chargeDate);
+        if (!d) return;
+        L.push('BEGIN:VEVENT', 'UID:box-' + b.id + '@book-tracker', 'DTSTAMP:' + stamp,
+          'DTSTART;VALUE=DATE:' + icsDate(d),
+          'DTEND;VALUE=DATE:' + icsDate(new Date(d.getTime() + 86400000)));
+        L.push('SUMMARY:' + icsEscape(s.name + ' ' + periodLabel(b.period) + '：' +
+          b.books.map(function (x) { return x.title; }).join('、')));
+        L.push('DESCRIPTION:' + icsEscape(b.books.map(function (x) {
+          return '《' + x.title + '》' + (x.author ? ' / ' + x.author : '') +
+            (x.series ? ' / ' + x.series : '') + (x.grBookUrl ? '\n' + x.grBookUrl : '');
+        }).join('\n\n')));
+        L.push('END:VEVENT');
+      });
+    });
+    L.push('END:VCALENDAR');
+    return L.join('\r\n') + '\r\n';
+  }
+  function exportIcs() {
+    var txt = buildIcs();
+    if (txt.indexOf('BEGIN:VEVENT') === -1) { toast('还没有可提醒的扣款日：先给订阅填上扣款日'); return; }
+    try {
+      var blob = new Blob([txt], { type: 'text/calendar;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '订阅扣款提醒.ics';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 5000);
+      toast('已生成日历文件：用手机打开它就能导入日历，之后每月自动提醒');
+    } catch (e) { toast('生成日历文件失败'); }
+  }
+
+  /* ---- 视图切换 ---- */
+  var view = 'books';
+  function setView(v) {
+    view = v === 'subs' ? 'subs' : 'books';
+    document.body.classList.toggle('view-subs', view === 'subs');
+    if ($('tabRow')) {
+      $('tabRow').querySelectorAll('.tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.view === view);
+      });
+    }
+    if (view === 'subs') renderSubs(); else render();
+    window.scrollTo(0, 0);
+  }
+
+  /* ---- 绑定 ---- */
+  if ($('tabRow')) {
+    $('tabRow').querySelectorAll('.tab').forEach(function (t) {
+      t.onclick = function () { setView(t.dataset.view); };
+    });
+  }
+  if ($('subsList')) $('subsList').addEventListener('click', subsClick);
+  if ($('subsAlert')) $('subsAlert').addEventListener('click', subsClick);
+  if ($('btnAddSub')) $('btnAddSub').onclick = function () { openSubForm(null); };
+  if ($('btnExportIcs')) $('btnExportIcs').onclick = exportIcs;
+  if ($('btnFxOpen')) $('btnFxOpen').onclick = openFxForm;
+  if ($('btnSubCancel')) $('btnSubCancel').onclick = function () { closeModal('subModal'); };
+  if ($('btnBoxCancel')) $('btnBoxCancel').onclick = function () { closeModal('boxModal'); };
+  if ($('btnFxCancel')) $('btnFxCancel').onclick = function () { closeModal('fxModal'); };
+  if ($('btnFxSave')) $('btnFxSave').onclick = saveFxForm;
+  if ($('btnFxUpdate')) $('btnFxUpdate').onclick = updateFxOnline;
+  if ($('btnBoxAddBook')) $('btnBoxAddBook').onclick = function () {
+    var s = subById($('bSubId').value), b = boxOf(s, $('bId').value);
+    if (s && b) { closeModal('boxModal'); openFormForBox(s.id, b.id); }
+  };
+  if ($('btnBoxDel')) $('btnBoxDel').onclick = function () {
+    var s = subById($('bSubId').value), b = boxOf(s, $('bId').value);
+    closeModal('boxModal');
+    deleteBox(s, b);
+  };
+  if ($('btnSubSave')) $('btnSubSave').onclick = function () {
+    var name = trim($('sName').value);
+    if (!name) { toast('请填订阅名称'); return; }
+    var day = parseInt($('sDay').value, 10);
+    if (isNaN(day) || day < 1 || day > 31) day = 0;
+    var data = {
+      name: name, site: trim($('sSite').value),
+      cycle: parseInt($('sCycle').value, 10) === 2 ? 2 : 1,
+      chargeDay: day, amount: trim($('sAmount').value),
+      currency: $('sCurrency').value, active: $('sActive').checked, note: trim($('sNote').value)
+    };
+    if (editingSub) Object.keys(data).forEach(function (k) { editingSub[k] = data[k]; });
+    else { data.id = uid(); data.boxes = []; subs.push(data); }
+    saveSubs(); closeModal('subModal'); renderSubs(); render();
+    toast(day ? '已保存（下次扣款 ' + cnDate(nextCharge(editingSub || subs[subs.length - 1])) + '）' : '已保存；填上扣款日才会提醒');
+  };
+  if ($('btnBoxSave')) $('btnBoxSave').onclick = function () {
+    var s = subById($('bSubId').value), b = boxOf(s, $('bId').value);
+    if (!s || !b) return;
+    b.period = trim($('bPeriod').value) || b.period;
+    b.chargeDate = trim($('bDate').value) || b.chargeDate;
+    b.status = $('bStatus').value;
+    b.amount = trim($('bAmount').value);
+    b.currency = $('bCurrency').value;
+    b.note = trim($('bNote').value);
+    saveSubs(); closeModal('boxModal'); renderSubs(); render();
+    toast('已保存 ' + periodLabel(b.period) + ' 期');
+  };
+  if ($('fCurrency')) fillCurSel($('fCurrency'), 'CNY');
 
   render();
 })();

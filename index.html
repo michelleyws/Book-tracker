@@ -24,7 +24,11 @@
   <div class="search-row">
     <input type="search" id="searchInput" placeholder="🔍 搜索任意内容：书名 / 作者 / 系列 / 日期 / 价格 / 备注…" autocomplete="off">
   </div>
-  <div class="filter-row" id="filterRow">
+  <div class="tab-row" id="tabRow">
+    <button class="tab active" data-view="books" type="button">📚 书库</button>
+    <button class="tab" data-view="subs" type="button">📦 订阅盒子</button>
+  </div>
+  <div class="filter-row books-only" id="filterRow">
     <button class="chip active" data-filter="all" type="button">全部</button>
     <button class="chip" data-filter="yes" type="button">已到手</button>
     <button class="chip" data-filter="pending" type="button">没到手</button>
@@ -51,17 +55,34 @@
 </div>
 
 <main>
-  <section class="summary-card" id="summaryCard"></section>
-  <p class="list-hint" id="listHint">长按任一条目可多选<span class="hint-wide">（电脑上按右键）</span></p>
-  <div id="bookList" class="book-list"></div>
+  <div class="books-only" id="viewBooks">
+    <div class="due-banner" id="dueBanner" hidden></div>
+    <section class="summary-card" id="summaryCard"></section>
+    <p class="list-hint" id="listHint">长按任一条目可多选<span class="hint-wide">（电脑上按右键）</span></p>
+    <div id="bookList" class="book-list"></div>
+  </div>
+
+  <div class="subs-only" id="viewSubs">
+    <div class="subs-wrap">
+      <section class="summary-card" id="subsTop"></section>
+      <div class="subs-alert" id="subsAlert" hidden></div>
+      <div id="subsList"></div>
+      <div class="subs-foot">
+        <button class="btn btn-outline btn-block" type="button" id="btnAddSub">＋ 添加订阅</button>
+        <button class="btn btn-outline btn-block" type="button" id="btnExportIcs">📅 导出日历提醒（.ics）</button>
+        <button class="btn btn-outline btn-block" type="button" id="btnFxOpen">💱 汇率设置（折合人民币）</button>
+      </div>
+      <p class="hint-plain">静态网页做不到后台推送。要真正的「扣款前提醒」，点上面「导出日历提醒」把 <b>.ics</b> 导进手机日历 —— 每家订阅会按月循环提醒（扣款前 7 天、前 1 天各响一次），并且把那期的书目写进事件备注里。</p>
+    </div>
+  </div>
 </main>
 
-<div class="empty-state" id="emptyState" hidden>
+<div class="empty-state books-only" id="emptyState" hidden>
   <p>还没有记录</p>
   <p class="empty-hint">点右下角 <b>＋</b> 手动添加，或点右上角 <b>导入</b> 你的 Excel 表</p>
 </div>
 
-<button id="btnAdd" class="fab" type="button" aria-label="添加">＋</button>
+<button id="btnAdd" class="fab books-only" type="button" aria-label="添加">＋</button>
 
 <!-- 详情弹层 -->
 <div class="modal-mask" id="detailModal" hidden>
@@ -122,8 +143,11 @@
             <input type="date" id="fDate">
           </label>
           <label class="field">
-            <span>价格</span>
-            <input type="number" id="fPrice" step="any" inputmode="decimal" placeholder="如 65 或 24.99">
+            <span>价格（可记外币，合计自动折人民币）</span>
+            <div class="price-inline">
+              <input type="number" id="fPrice" step="any" inputmode="decimal" placeholder="如 65 或 24.99">
+              <select id="fCurrency"></select>
+            </div>
           </label>
         </div>
         <label class="field">
@@ -159,6 +183,8 @@
         <input type="hidden" id="fGrBookUrlH">
         <input type="hidden" id="fGrAuthorUrlH">
         <input type="hidden" id="fGrSeriesUrlH">
+        <input type="hidden" id="fBoxRef">
+        <p class="form-tip box" id="formBoxTip" hidden></p>
         <p class="form-tip" id="grTip" hidden>已按书名+作者打开 Goodreads 搜索，找到对应书籍页面后，复制网址粘贴到上面即可。</p>
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" id="btnCancel">取消</button>
@@ -228,6 +254,129 @@
       <div class="form-actions">
         <button class="btn btn-ghost" type="button" id="btnSeriesCancel">取消</button>
         <button class="btn btn-primary" type="button" id="btnSeriesAdd">添加选中的</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 订阅表单 -->
+<div class="modal-mask" id="subModal" hidden>
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-body">
+      <h2 id="subTitle">添加订阅</h2>
+      <input type="hidden" id="sId">
+      <label class="field required">
+        <span>订阅名称</span>
+        <input type="text" id="sName" placeholder="如 The Broken Binding">
+      </label>
+      <label class="field">
+        <span>官网（可选）</span>
+        <input type="url" id="sSite" placeholder="https://… 用来核对扣款日和爆料">
+      </label>
+      <div class="field-pair">
+        <label class="field">
+          <span>扣款周期</span>
+          <select id="sCycle">
+            <option value="1">每月一次</option>
+            <option value="2">每两个月一次</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>每月几号扣款</span>
+          <input type="number" id="sDay" min="1" max="31" inputmode="numeric" placeholder="如 15">
+        </label>
+      </div>
+      <div class="field-pair">
+        <label class="field">
+          <span>每次金额</span>
+          <input type="number" id="sAmount" step="any" inputmode="decimal" placeholder="如 35">
+        </label>
+        <label class="field">
+          <span>币种</span>
+          <select id="sCurrency"></select>
+        </label>
+      </div>
+      <label class="field">
+        <span>备注（可选）</span>
+        <textarea id="sNote" rows="2" placeholder="如：3 个月起订 / 提前两周爆料书单"></textarea>
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" id="sActive" checked>
+        <span>启用（关掉就不参与提醒）</span>
+      </label>
+      <p class="hint-plain">扣款日以各家官网为准（每家不一样）。填好之后订阅页就会倒计时提醒；官网提前爆料的本期书目，在本期里点「＋ 加书」登记，作者 / 系列 / Goodreads 链接和书库一样能自动补全。</p>
+      <div class="form-actions">
+        <button class="btn btn-ghost" type="button" id="btnSubCancel">取消</button>
+        <button class="btn btn-primary" type="button" id="btnSubSave">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 期次表单 -->
+<div class="modal-mask" id="boxModal" hidden>
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-body">
+      <h2 id="boxTitle">期次</h2>
+      <input type="hidden" id="bSubId">
+      <input type="hidden" id="bId">
+      <div class="field-pair pair-date">
+        <label class="field">
+          <span>期次（哪个月）</span>
+          <input type="month" id="bPeriod">
+        </label>
+        <label class="field">
+          <span>实际扣款日</span>
+          <input type="date" id="bDate">
+        </label>
+      </div>
+      <label class="field">
+        <span>这期状态</span>
+        <select id="bStatus">
+          <option value="pending">待扣款（还没定）</option>
+          <option value="charged">已扣款（买了这期）</option>
+          <option value="skipped">已跳过（skip，没扣款）</option>
+          <option value="cancelled">已取消</option>
+        </select>
+      </label>
+      <div class="field-pair">
+        <label class="field">
+          <span>实际扣款金额</span>
+          <input type="number" id="bAmount" step="any" inputmode="decimal">
+        </label>
+        <label class="field">
+          <span>币种</span>
+          <select id="bCurrency"></select>
+        </label>
+      </div>
+      <label class="field">
+        <span>备注（可选）</span>
+        <textarea id="bNote" rows="2"></textarea>
+      </label>
+      <button class="btn btn-outline btn-block" type="button" id="btnBoxAddBook">＋ 加书到本期</button>
+      <div class="form-actions">
+        <button class="btn btn-ghost" type="button" id="btnBoxCancel">取消</button>
+        <button class="btn btn-danger" type="button" id="btnBoxDel">删除本期</button>
+        <button class="btn btn-primary" type="button" id="btnBoxSave">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 汇率 -->
+<div class="modal-mask" id="fxModal" hidden>
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-body">
+      <h2>汇率（折合人民币）</h2>
+      <p class="hint-plain">填「1 单位外币 = 多少人民币」。默认值是写死的参考值、会过期，点下面的按钮拉最新汇率，也可以自己填。</p>
+      <button class="btn btn-outline btn-block" type="button" id="btnFxUpdate">联网更新汇率</button>
+      <div class="fx-list" id="fxList"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" type="button" id="btnFxCancel">取消</button>
+        <button class="btn btn-primary" type="button" id="btnFxSave">保存</button>
       </div>
     </div>
   </div>

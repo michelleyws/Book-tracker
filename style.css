@@ -652,6 +652,13 @@ body.selecting .list-hint { visibility: hidden; }
   .field { margin-bottom: 15px; }
   .field > span { margin-bottom: 6px; }
   .field-pair { gap: 10px; }
+  .tab-row { gap: 7px; margin-top: 9px; }
+  .tab { padding: 6px 9px; font-size: 13.5px; }
+  .subs-wrap { padding: 10px 10px calc(96px + var(--safe-bottom)); }
+  .sub-card { padding: 12px; }
+  .sub-actions, .box-actions { gap: 6px; }
+  .sub-actions .btn-small, .box-actions .btn-small { padding: 7px 10px; font-size: 13px; }
+  .due-banner { margin: 10px 10px 0; font-size: 13px; }
 }
 .hint-wide { white-space: nowrap; }
 
@@ -668,3 +675,159 @@ body.selecting .list-hint { visibility: hidden; }
   line-height: 1.6;
   margin: 8px 0 0;
 }
+
+
+/* ===== 顶部标签：书库 / 订阅盒子 ===== */
+.tab-row { display: flex; gap: 8px; margin-top: 10px; }
+.tab {
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, .35);
+  background: transparent;
+  color: rgba(255, 255, 255, .9);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.tab.active {
+  background: #fff;
+  color: var(--primary-dark);
+  font-weight: 650;
+  border-color: #fff;
+}
+
+/* 两个视图互斥 */
+.subs-only { display: none; }
+body.view-subs .books-only { display: none !important; }
+body.view-subs .subs-only { display: block; }
+
+/* ===== 价格 + 币种（一行） ===== */
+.price-inline { display: flex; gap: 7px; }
+.price-inline input { flex: 1; min-width: 0; }
+.price-inline select {
+  flex: none;
+  width: 118px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 8px;
+  font-size: 14px;
+  background: #fbfcfe;
+  color: var(--text);
+  outline: none;
+}
+
+/* 书库页顶部的扣款提醒条 */
+.due-banner {
+  max-width: 720px;
+  margin: 12px auto 0;
+  padding: 10px 14px;
+  background: #fff8e6;
+  border: 1px solid #f5d99a;
+  border-radius: var(--radius);
+  color: #7a4d00;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.due-banner .btn-small { margin-left: auto; }
+
+/* ===== 订阅盒子 ===== */
+.subs-wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px 12px calc(96px + var(--safe-bottom));
+}
+.subs-wrap .summary-card { margin: 0; padding: 0; }
+.subs-alert { margin-top: 10px; }
+.alert-row {
+  background: #fff8e6;
+  border: 1px solid #f5d99a;
+  color: #7a4d00;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.alert-row.late { background: #fdecef; border-color: #f3b7c2; color: #a3122c; }
+.alert-row.late .btn-small { background: #fbdde3; color: #a3122c; }
+.sub-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 13px 14px;
+  margin-top: 10px;
+}
+.sub-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sub-name { font-weight: 700; font-size: 16px; }
+.sub-badge {
+  font-size: 11.5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #eef1f8;
+  color: #45506b;
+  white-space: nowrap;
+}
+.sub-badge.due { background: #fff3d6; color: #92610a; font-weight: 650; }
+.sub-badge.off, .sub-badge.none { background: #f0f2f8; color: #8590a8; }
+.sub-meta { font-size: 12.5px; color: var(--text-2); margin-top: 5px; word-break: break-word; }
+.sub-actions, .box-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+.box-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 11px;
+  margin-top: 9px;
+  background: #fbfcfe;
+}
+.box-card.charged { background: #f4fbf7; border-color: #cdeadb; }
+.box-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.box-period { font-weight: 700; font-size: 14.5px; }
+.box-st { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: #eef1f8; color: #45506b; }
+.box-st.charged { background: #e6f6ee; color: #047857; font-weight: 650; }
+.box-st.skipped { background: #fdeede; color: #b45309; }
+.box-st.cancelled { background: #f0f2f8; color: #8590a8; }
+.box-amt { font-size: 12.5px; color: #92610a; font-weight: 650; }
+.box-date { font-size: 12px; color: var(--text-2); margin-left: auto; }
+.box-note { font-size: 12.5px; color: var(--text-2); margin-top: 6px; white-space: pre-wrap; }
+.box-books { margin-top: 8px; display: flex; flex-direction: column; gap: 7px; }
+.box-book {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.bb-main { flex: 1; min-width: 0; }
+.bb-title { font-weight: 650; font-size: 14.5px; color: var(--primary); text-decoration: none; word-break: break-word; }
+.bb-title.plain { color: var(--text); }
+.bb-author { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+.bb-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.box-empty { font-size: 12.5px; color: var(--text-2); margin: 7px 0 0; }
+.subs-foot { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.subs-foot .btn-block { margin-top: 0; }
+
+/* 汇率 */
+.fx-list { margin-top: 12px; }
+.fx-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.fx-row > span { flex: 1; min-width: 0; font-size: 13.5px; color: var(--text-2); }
+.fx-row > input {
+  width: 110px;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 14px;
+  background: #fbfcfe;
+  outline: none;
+}
+
+/* 从订阅期次里加书时的提示条 */
+.form-tip.box { background: #e8f0ff; color: #1e56c8; }

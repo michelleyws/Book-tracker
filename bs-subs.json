@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-19T14:30:04Z",
+ "generatedAt": "2026-11-20T14:06:24Z",
  "source": "https://www.booksandspreadsheets.com",
  "note": "由 .github/workflows/sync-bs.yml 每日自动生成。数据来自 booksandspreadsheets.com；标 guessed 的书目是该站推测，仅供参考。",
  "companies": [
@@ -647,36 +647,6 @@
    "note": "Two Tiers of Subscription - Tier 1 is signed & numbered and gets 1st access to sales. Tier 2 is not signed & numbered and gets second access to sales.",
    "boxes": [
     {
-     "period": "2025-05",
-     "boxLabel": "May 2025 Box",
-     "company": "The Broken Binding Fantasy",
-     "bookTitle": "Magician",
-     "featureType": "Hardcover",
-     "cover": "https://static.wixstatic.com/media/88deaf_ff038e475ed547418fd1931fd772a293~mv2.png",
-     "design": [],
-     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/magician-the-riftwar-saga-broken-binding-fantasy-may-2025"
-    },
-    {
-     "period": "2025-06",
-     "boxLabel": "June 2025 Box",
-     "company": "The Broken Binding Fantasy",
-     "bookTitle": "Silverthorn",
-     "featureType": "Hardcover",
-     "cover": "https://static.wixstatic.com/media/88deaf_2dd90169623942d38790d5296d81a191~mv2.png",
-     "design": [],
-     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/silverthorn-the-riftwar-saga-broken-binding-fantasy-june-2025"
-    },
-    {
-     "period": "2025-07",
-     "boxLabel": "July 2025 Box",
-     "company": "The Broken Binding Fantasy",
-     "bookTitle": "A Darkness at Sethanon",
-     "featureType": "Hardcover",
-     "cover": "https://static.wixstatic.com/media/88deaf_d7da88e377824bd5b03d504537b37ab8~mv2.jpeg",
-     "design": [],
-     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/a-darkness-at-sethanon-the-riftwar-saga-broken-binding-fantasy-july-2025"
-    },
-    {
      "period": "2025-08",
      "boxLabel": "August 2025 Box",
      "company": "The Broken Binding Fantasy",
@@ -934,6 +904,57 @@
       "其他：Black & White Interior Illustrations、Numbered (Tier 1 Only)、Head & Tail Bands"
      ],
      "editionUrl": "https://www.booksandspreadsheets.com/special-editions/heir-of-novron-michael-j-sullivan-broken-binding-fantasy"
+    },
+    {
+     "period": "2027-01",
+     "boxLabel": "January 2027 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "The Court of Broken Knives",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_8b2e78a9975541f5a2e3a7be56241acf~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed、Connecting Edges",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Sewn Binding、Acid-Free Paper、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-court-of-broken-knives-anna-smith-spark-the-broken-binding"
+    },
+    {
+     "period": "2027-02",
+     "boxLabel": "February 2027 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "Tower Of Living & Dying",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_0e506dc1891e40ac972acf90a404e2dc~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed、Connecting Edges",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Sewn Binding、Acid-Free Paper、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/tower-of-living-dying-anna-smith-spark-the-broken-binding"
+    },
+    {
+     "period": "2027-03",
+     "boxLabel": "March 2027 Box",
+     "company": "The Broken Binding Fantasy",
+     "bookTitle": "The House of Sacrifice",
+     "featureType": "Hardcover",
+     "cover": "https://static.wixstatic.com/media/88deaf_3c88f5a4de63495199ce687cd9b1e527~mv2.jpeg",
+     "design": [
+      "硬壳：Custom",
+      "环衬：Illustrated、Different Front & Back",
+      "书口：Digitally Sprayed/Printed、Connecting Edges",
+      "封面工艺：Redesigned、Exclusive",
+      "签名：Physical Signature、Tier 1 Subscribers Only",
+      "其他：Black & White Interior Illustrations、Numbered、Tier 1 Subscribers Only、Head & Tail Bands、Sewn Binding、Acid-Free Paper、Ribbon Bookmark"
+     ],
+     "editionUrl": "https://www.booksandspreadsheets.com/special-editions/the-house-of-sacrifice-anna-smith-spark-the-broken-binding"
     }
    ]
   },

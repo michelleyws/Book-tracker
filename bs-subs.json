@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-24T15:57:34Z",
+ "generatedAt": "2026-11-25T15:43:30Z",
  "source": "https://www.booksandspreadsheets.com",
  "note": "由 .github/workflows/sync-bs.yml 每日自动生成。数据来自 booksandspreadsheets.com；标 guessed 的书目是该站推测，仅供参考。",
  "companies": [
@@ -19,6 +19,56 @@
    "shipsTo": "Worldwide (many exceptions)",
    "website": "https://www.bewitchedpages.com/",
    "note": "First invites will go out in April 2026. Will eventually become a monthly sub.",
+   "boxes": []
+  },
+  {
+   "name": "Bewitched Pages Backlist",
+   "slug": "bewitched-pages-backlist-sub",
+   "renews": "1st of the month before (Jan, Mar, May, Jul, Sep, Nov)",
+   "chargeDay": 1,
+   "chargeMonths": [
+    1,
+    3,
+    5,
+    7,
+    9,
+    11
+   ],
+   "skipDeadline": "1 week before renewal",
+   "skipExample": "To skip the June box, log in to skip by April 24th",
+   "skipPolicy": "3 skips per calendar year",
+   "cost": "£25 + shipping bi-monthly",
+   "cycle": "April Box renews on March 1st and ships by the end of April",
+   "ships": "By the end of the month",
+   "shipsFrom": "UK",
+   "shipsTo": "Worldwide (many exceptions)",
+   "website": "https://www.bewitchedpages.com/",
+   "note": "",
+   "boxes": []
+  },
+  {
+   "name": "Bewitched Pages Frontlist",
+   "slug": "bewitched-pages-frontlist-sub",
+   "renews": "1st of the month before (Feb, Apr, Jun, Aug, Oct, Dec)",
+   "chargeDay": 1,
+   "chargeMonths": [
+    2,
+    4,
+    6,
+    8,
+    10,
+    12
+   ],
+   "skipDeadline": "1 week before renewal",
+   "skipExample": "To skip the May box, log in to skip by March 25th",
+   "skipPolicy": "3 skips per calendar year",
+   "cost": "£25 + shipping bi-monthly",
+   "cycle": "May renews on April 1st and ships by the end of May",
+   "ships": "By the end of the month",
+   "shipsFrom": "UK",
+   "shipsTo": "Worldwide (many exceptions)",
+   "website": "https://www.bewitchedpages.com/",
+   "note": "",
    "boxes": []
   },
   {
